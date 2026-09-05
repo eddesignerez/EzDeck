@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
 import { createSocket } from "node:dgram";
-import { networkInterfaces } from "node:os";
+import { networkInterfaces, tmpdir } from "node:os";
 import { mkdirSync, existsSync, copyFileSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join, extname, resolve } from "node:path";
@@ -23,8 +23,7 @@ function makeServer() {
   }
   return createServer();
 }
-import { listAppProcesses, listInstalledApps, realIconService } from "./apps.js";
-import { activateApp, openWebsite } from "./actions.js";
+import { createPlatform } from "./platform/platform-contract.js";
 import {
   loadConfig,
   saveConfig,
@@ -198,6 +197,19 @@ function localIpFor(peerIp) {
   return null;
 }
 
+/** Endereços que podem ser informados ao companion no primeiro pareamento. */
+export function localLanAddresses() {
+  const addresses = [];
+  for (const infos of Object.values(networkInterfaces())) {
+    for (const info of infos ?? []) {
+      if (info.family === "IPv4" && !info.internal && !addresses.includes(info.address)) {
+        addresses.push(info.address);
+      }
+    }
+  }
+  return addresses;
+}
+
 /** Sobe o listener UDP que responde "dokke:<ip>:<porta>" pra quem perguntar. */
 export function startDiscovery(port = DISCOVERY_PORT, { portHint = 3000, log = console.log } = {}) {
   const sock = createSocket("udp4");
@@ -290,15 +302,14 @@ function createStatusFeed({ readConfig, listProcesses, version = null }) {
 }
 
 export function makeApp(deps = {}) {
-  const {
-    root = join(import.meta.dirname, "public"),
-    appTools = { listAppProcesses, listInstalledApps },
-    actions = { activateApp, openWebsite },
-    obs = null,
-    iconService = realIconService(),
-    onStatusChange = null,
-    getDeviceCount = null,
-  } = deps;
+  const platform = deps.platform || createPlatform();
+  const root = deps.root || join(import.meta.dirname, "public");
+  const appTools = deps.appTools || platform.appTools;
+  const actions = deps.actions || platform.actions;
+  const obs = deps.obs || null;
+  const iconService = deps.iconService || platform.iconService;
+  const onStatusChange = deps.onStatusChange || null;
+  const getDeviceCount = deps.getDeviceCount || null;
   const configFile = deps.configFile ?? (deps.config === undefined ? join(import.meta.dirname, "config.json") : null);
   const readConfig = async () => {
     if (configFile) return loadConfig(configFile);
@@ -911,6 +922,7 @@ export function makeApp(deps = {}) {
 
 export async function startServer(arg = {}) {
   const opts = typeof arg === "number" ? { port: arg } : (arg ?? {});
+  const platform = opts.platform || createPlatform();
   const port = opts.port ?? (process.env.PORT ? Number(process.env.PORT) : 3000);
   const requestedHeartbeat = Number(opts.wsHeartbeatMs);
   const wsHeartbeatMs = Number.isFinite(requestedHeartbeat) && requestedHeartbeat >= 10
@@ -931,8 +943,16 @@ export async function startServer(arg = {}) {
     if (process.platform === "darwin") return join(home, "Library", "Application Support", "Dokke");
     return join(process.env.XDG_CONFIG_HOME || join(home, ".config"), "dokke");
   }
-  const dataDir = userDataDir();
-  try { mkdirSync(dataDir, { recursive: true }); } catch (e) {}
+  let dataDir = userDataDir();
+  try {
+    mkdirSync(dataDir, { recursive: true });
+  } catch {
+    // Ambientes restritos (testes, portable/sandbox) podem negar APPDATA.
+    // O host normal continua persistindo em APPDATA; o fallback impede que o
+    // servidor deixe de iniciar por não conseguir criar o PIN.
+    dataDir = join(tmpdir(), "dokke");
+    mkdirSync(dataDir, { recursive: true });
+  }
   const userConfig = join(dataDir, "config.json");
   // migração: versões antigas guardavam config dentro do bundle — se o destino
   // não existe mas o bundle tem dados, copia antes de começar (nunca sobrescreve)
@@ -973,11 +993,12 @@ export async function startServer(arg = {}) {
     readConfig: () => configFile ? loadConfig(configFile) : Promise.resolve(opts.config || { pinned: [] }),
     listProcesses: (opts.appTools && opts.appTools.listAppProcesses)
       ? opts.appTools.listAppProcesses
-      : listAppProcesses,
+      : platform.appTools.listAppProcesses,
     version: uiVer,
   });
   const handler = makeApp({
     ...opts,
+    platform,
     configFile: configFile ?? undefined,
     onStatusChange: () => feed.ping(),
     getDeviceCount: () => feed.clientCount(),
@@ -1073,15 +1094,17 @@ export async function startServer(arg = {}) {
     try { wss.close(); } catch (e) {}
     server.close(e => e ? reject(e) : resolve());
   });
-  return { port: server.address().port, close };
+  return { port: server.address().port, close, getPin: () => currentPin };
 }
 
 // bootstrap: só quando executado direto (node server.js), nunca no import
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const proto = (process.env.HTTPS_CERT && process.env.HTTPS_KEY) ? "https" : "http";
   startServer()
-    .then(({ port }) => {
+    .then(({ port, getPin }) => {
       console.log(`Dokke ouvindo em http://127.0.0.1:${port}`);
+      for (const ip of localLanAddresses()) console.log(`Android na mesma rede: http://${ip}:${port}`);
+      console.log(`PIN de pareamento: ${getPin()}`);
       // responder descoberta UDP pra devices Android acharem o IP sozinhos
       startDiscovery(DISCOVERY_PORT, { portHint: port }).unref();
     })
