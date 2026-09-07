@@ -22,14 +22,14 @@ function ask(port, payload, timeoutMs = 2000) {
   });
 }
 
-test("responde descoberta com dokke:ip:porta", async () => {
+test("responde descoberta com ezdeck:ip:porta", async () => {
   const sock = startDiscovery(0, { portHint: 4567, log: () => {} });
   await new Promise(r => sock.on("listening", r));
   try {
     const port = sock.address().port;
     const reply = await ask(port, DISCOVERY_MAGIC);
     assert.ok(reply, "deveria ter respondido");
-    const m = reply.match(/^dokke:(\d{1,3}(?:\.\d{1,3}){3}):(\d+)$/);
+    const m = reply.match(/^ezdeck:(\d{1,3}(?:\.\d{1,3}){3}):(\d+)$/);
     assert.ok(m, `resposta malformada: ${reply}`);
     assert.equal(m[2], "4567", "porta deveria ser a do server");
   } finally {

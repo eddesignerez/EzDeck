@@ -2,10 +2,13 @@ import { execFile } from "node:child_process";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { basename, extname, join } from "node:path";
-import { promisify } from "node:util";
-
-const exec = promisify(execFile);
+const exec = (file, args, { input, ...options }) => new Promise((resolve, reject) => {
+  const child = execFile(file, args, options, (error, stdout, stderr) => error ? reject(error) : resolve({ stdout, stderr }));
+  child.stdin.on("error", () => {});
+  child.stdin.end(input);
+});
 const SHORTCUT_EXTENSIONS = new Set([".lnk", ".appref-ms"]);
+const STORE_APPS_SCRIPT = "Get-StartApps | ForEach-Object { [pscustomobject]@{ name = $_.Name; appId = $_.AppID } } | ConvertTo-Json -Compress";
 const PROCESS_SCRIPT = "Get-Process | Where-Object { $_.MainWindowHandle -ne 0 } | ForEach-Object { [pscustomobject]@{ name = $_.ProcessName; pid = $_.Id; path = $_.Path } } | ConvertTo-Json -Compress";
 const SHORTCUT_SCRIPT = "$shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($args[0]); [pscustomobject]@{ target = $shortcut.TargetPath } | ConvertTo-Json -Compress";
 const ICON_SCRIPT = "Add-Type -AssemblyName System.Drawing; $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($args[0]); if ($null -eq $icon) { exit 1 }; $bitmap = $icon.ToBitmap(); try { $bitmap.Save($args[1], [System.Drawing.Imaging.ImageFormat]::Png) } finally { $bitmap.Dispose(); $icon.Dispose() }";
@@ -25,7 +28,10 @@ export function defaultStartMenuDirectories(env = process.env) {
 }
 
 export async function runPowerShell(script, args = [], run = exec) {
-  return run("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script, ...args]);
+  // -Command appends arguments to source text; paths with spaces and $ are not
+  // safe there. Encode the entire wrapper and deserialize arguments as data.
+  const wrapper = `$ErrorActionPreference='Stop'; [Console]::InputEncoding=New-Object System.Text.UTF8Encoding; [Console]::OutputEncoding=New-Object System.Text.UTF8Encoding; $ezArgs=ConvertFrom-Json ([Console]::In.ReadToEnd()); & { ${script} } @ezArgs`;
+  return run("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(wrapper, "utf16le").toString("base64")], { input: JSON.stringify(args), windowsHide: true, timeout: 20000, maxBuffer: 8 * 1024 * 1024 });
 }
 
 export async function findStartMenuShortcuts(directory, deps = {}, depth = 0) {
@@ -67,7 +73,7 @@ export function deduplicateWindowsApps(apps) {
     const key = normalize(app.name);
     if (seen.has(key)) continue;
     seen.add(key);
-    result.push({ name: app.name, path: app.path, icon: true });
+    result.push({ name: app.name, path: app.path, icon: app.icon !== false, ...(app.targetPath ? { targetPath: app.targetPath } : {}), ...(app.store ? { store: true } : {}) });
   }
   return result.sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }));
 }
@@ -81,6 +87,30 @@ export async function scanWindowsApps(deps = {}) {
   const discover = deps.findShortcuts || findStartMenuShortcuts;
   const resolveShortcut = deps.resolveShortcut || resolveWindowsShortcut;
   const apps = [];
+  if (!deps.resolveShortcut) {
+    const paths = (await Promise.all(directories.map(directory => discover(directory, deps)))).flat();
+    if (!paths.length) return [];
+    // Resolve the complete menu in one process. Launch the .lnk itself to
+    // preserve installer arguments, working directory and shell activation.
+    const script = "$shell=New-Object -ComObject WScript.Shell; @($args | ForEach-Object { $p=$_; $target=$p; if ([IO.Path]::GetExtension($p) -eq '.lnk') { try { $target=$shell.CreateShortcut($p).TargetPath } catch {} }; [pscustomobject]@{ path=$p; targetPath=$target } }) | ConvertTo-Json -Compress";
+    let resolved = [];
+    try {
+      const output = await runPowerShell(script, paths, deps.runPowerShell);
+      const parsed = JSON.parse(output.stdout || "[]");
+      resolved = Array.isArray(parsed) ? parsed : [parsed];
+    } catch { /* Unresolved shortcuts are still launchable by the Windows shell. */ }
+    const targets = new Map(resolved.map(item => [item.path, item.targetPath]));
+    const storeApps = [];
+    try {
+      const raw = await (deps.listStoreApps
+        ? deps.listStoreApps()
+        : runPowerShell(STORE_APPS_SCRIPT, [], deps.runPowerShell).then(output => JSON.parse(output.stdout || "[]")));
+      for (const item of (Array.isArray(raw) ? raw : [raw])) {
+        if (item?.name && item?.appId) storeApps.push({ name: String(item.name), path: `shell:AppsFolder\\${item.appId}`, icon: false, store: true });
+      }
+    } catch { /* Get-StartApps may be unavailable on older Windows editions. */ }
+    return deduplicateWindowsApps([...paths.map(path => ({ name: appNameFromShortcut(path), path, targetPath: targets.get(path) })), ...storeApps]);
+  }
   for (const directory of directories) {
     const shortcuts = await discover(directory, deps);
     for (const shortcut of shortcuts) {
@@ -109,7 +139,7 @@ export function createWindowsApps(deps = {}) {
   let cached = null;
   let cachedAt = 0;
   let inflight = null;
-  return {
+  const api = {
     async listInstalledApps() {
       const now = Date.now();
       if (cached && now - cachedAt < ttlMs) return cached;
@@ -122,8 +152,20 @@ export function createWindowsApps(deps = {}) {
       }, error => { inflight = null; throw error; });
       return inflight;
     },
-    listAppProcesses: listProcesses,
+    async refreshInstalledApps() {
+      cached = null;
+      cachedAt = 0;
+      return api.listInstalledApps();
+    },
+    async listAppProcesses() {
+      const [processes, installed] = await Promise.all([listProcesses(), api.listInstalledApps()]);
+      return processes.map(item => {
+        const match = installed.find(app => item.path && normalize(app.targetPath || app.path) === normalize(item.path));
+        return { ...item, name: match ? match.name : item.name };
+      });
+    },
   };
+  return api;
 }
 
 export async function convertWindowsIconToPng(sourcePath, outputPath, deps = {}) {
@@ -132,18 +174,23 @@ export async function convertWindowsIconToPng(sourcePath, outputPath, deps = {})
 
 export function createWindowsIconService({ listInstalledApps, convertIcon = convertWindowsIconToPng, ...deps } = {}) {
   const memory = new Map();
+  const inflight = new Map();
+  const waiting = [];
+  let active = 0;
   const maxEntries = deps.maxEntries ?? 40;
-  return {
-    async getIconPng(name) {
-      const key = normalize(name);
-      if (memory.has(key)) return memory.get(key);
+  async function extract(name, key) {
       const apps = await listInstalledApps();
       const app = apps.find(item => normalize(item.name) === key);
-      if (!app) return null;
-      const directory = await mkdtemp(join(tmpdir(), "dokke-icon-"));
-      const output = join(directory, "icon.png");
+      if (!app || !app.path || app.icon === false) return null;
+      // Opening a picker can request hundreds of icons at once. Keep native
+      // processes bounded so the desktop and pairing server stay responsive.
+      if (active >= 3) await new Promise(resolve => waiting.push(resolve));
+      else active++;
+      let directory;
       try {
-        await convertIcon(app.path, output, deps);
+        directory = await mkdtemp(join(tmpdir(), "ezdeck-icon-"));
+        const output = join(directory, "icon.png");
+        await convertIcon(app.targetPath || app.path, output, deps);
         const bytes = await readFile(output);
         memory.set(key, bytes);
         while (memory.size > maxEntries) memory.delete(memory.keys().next().value);
@@ -151,8 +198,19 @@ export function createWindowsIconService({ listInstalledApps, convertIcon = conv
       } catch {
         return null;
       } finally {
-        await rm(directory, { recursive: true, force: true }).catch(() => {});
+        if (directory) await rm(directory, { recursive: true, force: true }).catch(() => {});
+        const next = waiting.shift();
+        if (next) next(); else active--;
       }
+  }
+  return {
+    async getIconPng(name) {
+      const key = normalize(name);
+      if (memory.has(key)) return memory.get(key);
+      if (inflight.has(key)) return inflight.get(key);
+      const task = extract(name, key).finally(() => inflight.delete(key));
+      inflight.set(key, task);
+      return task;
     },
   };
 }

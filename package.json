@@ -1,9 +1,12 @@
 {
-  "name": "dokke",
+  "name": "ezdeck",
   "version": "0.2.8",
   "private": true,
   "type": "module",
-  "portless": { "name": "dokke", "script": "start" },
+  "portless": {
+    "name": "ezdeck",
+    "script": "start"
+  },
   "scripts": {
     "start": "node server.js",
     "test": "node --test",
@@ -14,9 +17,12 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/core": "^8.5.1",
     "ws": "^8.21.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.1",
     "playwright": "^1.62.1"
   },
   "optionalDependencies": {

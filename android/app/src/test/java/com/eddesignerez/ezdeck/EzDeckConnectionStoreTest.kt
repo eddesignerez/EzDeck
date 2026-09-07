@@ -1,4 +1,4 @@
-package com.dokke.app
+package com.eddesignerez.ezdeck
 
 import android.content.SharedPreferences
 import org.junit.Assert.assertEquals
@@ -6,15 +6,15 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-class DokkeConnectionStoreTest {
+class EzDeckConnectionStoreTest {
     @Test
     fun savesCanonicalEndpointAndDeletesInvalidValue() {
         val prefs = FakePreferences()
 
-        assertEquals("http://192.168.1.9:3000/", DokkeConnectionStore.save(prefs, " HTTP://192.168.1.9:3000/ "))
-        assertEquals("http://192.168.1.9:3000/", DokkeConnectionStore.read(prefs))
+        assertEquals("http://192.168.1.9:3000/", EzDeckConnectionStore.save(prefs, " HTTP://192.168.1.9:3000/ "))
+        assertEquals("http://192.168.1.9:3000/", EzDeckConnectionStore.read(prefs))
 
-        assertNull(DokkeConnectionStore.save(prefs, "javascript:alert(1)"))
+        assertNull(EzDeckConnectionStore.save(prefs, "javascript:alert(1)"))
         assertFalse(prefs.contains("server_url"))
     }
 

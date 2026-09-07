@@ -22,7 +22,7 @@ test("@spec:AC-336 /health continua público após inicialização do host", asy
   try {
     const response = await fetch(`http://127.0.0.1:${port}/health`);
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { ok: true, service: "Dokke" });
+    assert.deepEqual(await response.json(), { ok: true, service: "EzDeck" });
   } finally { await close(); }
 });
 

@@ -1,77 +1,27 @@
-# Dokke — App Android (companion nativo + PWA)
+# EzDeck — companion Android
 
-App fino que faz a descoberta e a conexão com o Mac nativamente e carrega a UI do
-**Dokke** (já construída em `../public/index.html`) em tela cheia, sem a chrome do
-navegador. Reaproveita 100% do front-end — nenhum código da UI é reescrito.
+O app Android descobre o host EzDeck na rede local e carrega a PWA em tela cheia. Ele usa o protocolo `ezdeck:discover`, confirma o health check `{"ok":true,"service":"EzDeck"}` e preserva somente o endpoint já validado.
 
-## O que faz
-- WebView em tela cheia/imersiva, fundo preto (#0a0a12) combinando com o app.
-- Carrega o servidor do Mac em `http://<ip-do-mac>:3000`.
-- Aceita cert local (Tailscale) para não travar em HTTP/self-signed.
-- Botão voltar do Android navega para trás dentro do app.
-- Tela de "loading" enquanto carrega.
-- Aviso de nova versão quando existe uma release mais recente no GitHub.
-- Download iniciado somente após o toque do usuário; a instalação passa pelo instalador oficial do Android.
-- **Login por código**: o dock pede o pin de 4 dígitos (aba "Sobre" do app Dokke no Mac)
-  na primeira conexão; o cookie dura 180 dias.
+## Build de desenvolvimento
 
-## Configurar a URL do servidor
-Edite `app/src/main/res/values/server_url.xml` com o IP do Mac na sua rede, ou
-sobrescreva em runtime pela chave `server_url` em `SharedPreferences("prefs")`.
+Requer JDK 17 e Android SDK:
 
-> **Auto-descoberta**: o app pergunta na rede via UDP broadcast (porta 3001, protocolo
-> `dokke:discover`) e o servidor responde com o IP atual. A resposta UDP só é aceita
-> depois que o APK confirma `GET /health` como Dokke. Se o IP do Mac mudar (queda de
-> luz, DHCP), o device acha o servidor sozinho e grava a URL nova — o IP do XML é só fallback.
-
-O APK persiste somente o endpoint HTTP(S) validado. O PIN e o cookie continuam no
-WebView; a camada nativa não bypassa o pareamento.
-
-## Build (precisa de Java + Android SDK)
 ```sh
 cd android
-./gradlew assembleDebug            # gera app/build/outputs/apk/debug/app-debug.apk
+./gradlew assembleDebug
 ```
 
-### Assinatura de release
+O aplicativo resultante usa o identificador `com.eddesignerez.ezdeck`, portanto será instalado separadamente de qualquer versão do Dokke.
 
-`assembleRelease` exige uma keystore externa. O Gradle lê os quatro valores abaixo
-por variáveis de ambiente ou por propriedades do Gradle (por exemplo,
-`~/.gradle/gradle.properties`, que não deve ser commitado):
+## Assinatura de release
+
+Uma release exige keystore externa. Configure estes quatro valores em `gradle.properties` fora do repositório ou como variáveis de ambiente:
 
 ```properties
-DOKKE_RELEASE_STORE_FILE=/caminho/seguro/dokke-release.keystore
-DOKKE_RELEASE_STORE_PASSWORD=...
-DOKKE_RELEASE_KEY_ALIAS=dokke
-DOKKE_RELEASE_KEY_PASSWORD=...
+EZDECK_RELEASE_STORE_FILE=/caminho/seguro/ezdeck-release.keystore
+EZDECK_RELEASE_STORE_PASSWORD=...
+EZDECK_RELEASE_KEY_ALIAS=ezdeck
+EZDECK_RELEASE_KEY_PASSWORD=...
 ```
 
-Também é possível exportar os mesmos nomes no ambiente antes do build:
-
-```sh
-export DOKKE_RELEASE_STORE_FILE=/caminho/seguro/dokke-release.keystore
-export DOKKE_RELEASE_STORE_PASSWORD='...'
-export DOKKE_RELEASE_KEY_ALIAS='dokke'
-export DOKKE_RELEASE_KEY_PASSWORD='...'
-cd android && ./gradlew assembleRelease
-```
-
-Sem os quatro valores, o build de release falha claramente. Ele não gera debug
-no lugar do release e não há keystore ou segredo no repositório. O arquivo
-`../public/dokke.apk` é o artefato de produção versionado; a keystore permanece
-fora do repositório. Instalações antigas assinadas com o certificado Debug
-precisam ser desinstaladas uma vez antes de instalar esta linha de produção.
-(Se `./gradlew` não existir, gere com: `gradle wrapper --gradle-version 8.5`.)
-
-## Instalar no J5 (via adb)
-```sh
-# USB: ative "Depuração USB" em Opções do desenvolvedor e plugue
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-# Wi-Fi (alternativa):
-adb tcpip 5555
-adb connect <ip-do-j5>:5555
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
-
-> Exigências nesta máquina: JDK 17+ e Android SDK (ANDROID_HOME). Hoje não estão
-> instalados (sem `java`, sem `adb`), por isso o build/install fica pendente.
+Nenhuma keystore, senha ou APK de release deve ser versionado.

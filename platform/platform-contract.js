@@ -3,7 +3,7 @@ import { listAppProcesses as listMacProcesses, listInstalledApps as listMacApps,
 import { createWindowsActions } from "./windows/actions.js";
 import { createWindowsApps, createWindowsIconService } from "./windows/apps.js";
 
-/** Mantém o protocolo HTTP independente do SO que está hospedando o Dokke. */
+/** Mantém o protocolo HTTP independente do SO que está hospedando o EzDeck. */
 export function createPlatform({ platform = process.platform, windows = {} } = {}) {
   if (platform === "win32") {
     const apps = windows.apps || createWindowsApps(windows);

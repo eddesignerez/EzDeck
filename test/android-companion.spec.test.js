@@ -6,12 +6,12 @@ import { fileURLToPath } from 'node:url';
 import { startServer } from '../server.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const androidMain = path.join(root, 'android/app/src/main/java/com/dokke/app');
-const discovery = fs.readFileSync(path.join(androidMain, 'DokkeDiscovery.kt'), 'utf8');
-const store = fs.readFileSync(path.join(androidMain, 'DokkeConnectionStore.kt'), 'utf8');
+const androidMain = path.join(root, 'android/app/src/main/java/com/eddesignerez/ezdeck');
+const discovery = fs.readFileSync(path.join(androidMain, 'EzDeckDiscovery.kt'), 'utf8');
+const store = fs.readFileSync(path.join(androidMain, 'EzDeckConnectionStore.kt'), 'utf8');
 const activity = fs.readFileSync(path.join(androidMain, 'MainActivity.kt'), 'utf8');
 
-test('AC-101: Descoberta aceita somente respostas Dokke válidas @spec:AC-101', () => {
+test('AC-101: Descoberta aceita somente respostas EzDeck válidas @spec:AC-101', () => {
   assert.match(discovery, /fun parseReply\(raw: String\?\): String\?/);
   assert.match(discovery, /replyPattern/);
   assert.match(discovery, /isValidIpv4/);
@@ -24,10 +24,10 @@ test('AC-102: O APK verifica o servidor antes de trocar de endereço @spec:AC-10
   try {
     const response = await fetch(`http://127.0.0.1:${port}/health`);
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { ok: true, service: 'Dokke' });
-    assert.match(discovery, /fun isDokkeHealth\(/);
-    assert.match(activity, /DokkeDiscovery\.healthUrl/);
-    assert.match(activity, /isDokkeHealth\(/);
+    assert.deepEqual(await response.json(), { ok: true, service: 'EzDeck' });
+    assert.match(discovery, /fun isEzDeckHealth\(/);
+    assert.match(activity, /EzDeckDiscovery\.healthUrl/);
+    assert.match(activity, /isEzDeckHealth\(/);
   } finally {
     await close();
   }
@@ -37,8 +37,8 @@ test('AC-103: Endpoint persistente e validado @spec:AC-103', () => {
   assert.match(store, /KEY_SERVER_URL/);
   assert.match(store, /ServerUrl\.normalize/);
   assert.match(store, /remove\(KEY_SERVER_URL\)/);
-  assert.match(activity, /DokkeConnectionStore\.read/);
-  assert.match(activity, /DokkeConnectionStore\.save/);
+  assert.match(activity, /EzDeckConnectionStore\.read/);
+  assert.match(activity, /EzDeckConnectionStore\.save/);
 });
 
 test('AC-104: A camada nativa não bypassa o pareamento @spec:AC-104', () => {
@@ -55,7 +55,7 @@ test('AC-105: server_url vindo de intent externa só vale após health check @sp
   const onNewIdx = activity.indexOf('onNewIntent');
   assert.ok(onNewIdx >= 0, 'onNewIntent deve existir');
   const afterOnNew = activity.slice(onNewIdx, onNewIdx + 1200);
-  assert.match(afterOnNew, /verifyDokkeServer|currentServerHealthy/, 'intent deve passar por validação de health antes de applyServerUrl persistente');
+  assert.match(afterOnNew, /verifyEzDeckServer|currentServerHealthy/, 'intent deve passar por validação de health antes de applyServerUrl persistente');
 });
 
 test('AC-106: Boot só troca de servidor quando o atual está morto @spec:AC-106', () => {

@@ -4,10 +4,10 @@ plugins {
 }
 
 def releaseSigningKeys = [
-    "DOKKE_RELEASE_STORE_FILE",
-    "DOKKE_RELEASE_STORE_PASSWORD",
-    "DOKKE_RELEASE_KEY_ALIAS",
-    "DOKKE_RELEASE_KEY_PASSWORD"
+    "EZDECK_RELEASE_STORE_FILE",
+    "EZDECK_RELEASE_STORE_PASSWORD",
+    "EZDECK_RELEASE_KEY_ALIAS",
+    "EZDECK_RELEASE_KEY_PASSWORD"
 ]
 
 def releaseSigningValue = { String name ->
@@ -22,17 +22,17 @@ def releaseSigningPartiallyConfigured = releaseSigningValues.values().any { it !
 
 if (releaseSigningPartiallyConfigured) {
     throw new GradleException(
-        "Assinatura release incompleta. Configure os quatro valores DOKKE_RELEASE_*; " +
+        "Assinatura release incompleta. Configure os quatro valores EZDECK_RELEASE_*; " +
             "nenhum segredo deve ser commitado."
     )
 }
 
 android {
-    namespace = "com.dokke.app"
+    namespace = "com.eddesignerez.ezdeck"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.dokke.app"
+        applicationId = "com.eddesignerez.ezdeck"
         minSdk = 21
         targetSdk = 34
         versionCode = 11
@@ -49,10 +49,10 @@ android {
     signingConfigs {
         if (releaseSigningConfigured) {
             create("release") {
-                storeFile = file(releaseSigningValues["DOKKE_RELEASE_STORE_FILE"])
-                storePassword = releaseSigningValues["DOKKE_RELEASE_STORE_PASSWORD"]
-                keyAlias = releaseSigningValues["DOKKE_RELEASE_KEY_ALIAS"]
-                keyPassword = releaseSigningValues["DOKKE_RELEASE_KEY_PASSWORD"]
+                storeFile = file(releaseSigningValues["EZDECK_RELEASE_STORE_FILE"])
+                storePassword = releaseSigningValues["EZDECK_RELEASE_STORE_PASSWORD"]
+                keyAlias = releaseSigningValues["EZDECK_RELEASE_KEY_ALIAS"]
+                keyPassword = releaseSigningValues["EZDECK_RELEASE_KEY_PASSWORD"]
             }
         }
     }
@@ -66,15 +66,15 @@ android {
     }
 }
 
-def verifyDokkeReleaseSigning = tasks.register("verifyDokkeReleaseSigning") {
+def verifyEzDeckReleaseSigning = tasks.register("verifyEzDeckReleaseSigning") {
     doLast {
         if (!releaseSigningConfigured) {
             throw new GradleException(
-                "Release Android bloqueado: keystore ausente. Configure DOKKE_RELEASE_STORE_FILE, " +
-                    "DOKKE_RELEASE_STORE_PASSWORD, DOKKE_RELEASE_KEY_ALIAS e DOKKE_RELEASE_KEY_PASSWORD."
+                "Release Android bloqueado: keystore ausente. Configure EZDECK_RELEASE_STORE_FILE, " +
+                    "EZDECK_RELEASE_STORE_PASSWORD, EZDECK_RELEASE_KEY_ALIAS e EZDECK_RELEASE_KEY_PASSWORD."
             )
         }
-        def storeFile = file(releaseSigningValues["DOKKE_RELEASE_STORE_FILE"])
+        def storeFile = file(releaseSigningValues["EZDECK_RELEASE_STORE_FILE"])
         if (!storeFile.isFile()) {
             throw new GradleException("Release Android bloqueado: keystore não encontrada em ${storeFile.absolutePath}")
         }
@@ -84,7 +84,7 @@ def verifyDokkeReleaseSigning = tasks.register("verifyDokkeReleaseSigning") {
 tasks.matching {
     it.name == "assembleRelease" || it.name == "bundleRelease"
 }.configureEach {
-    dependsOn(verifyDokkeReleaseSigning)
+    dependsOn(verifyEzDeckReleaseSigning)
 }
 
 dependencies {

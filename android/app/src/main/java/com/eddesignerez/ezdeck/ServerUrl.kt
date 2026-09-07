@@ -1,9 +1,9 @@
-package com.dokke.app
+package com.eddesignerez.ezdeck
 
 import java.net.URI
 import java.util.Locale
 
-/** URLs accepted as Dokke server endpoints and WebView origins. */
+/** URLs accepted as EzDeck server endpoints and WebView origins. */
 internal object ServerUrl {
     private val allowedSchemes = setOf("http", "https")
 

@@ -1,15 +1,15 @@
-package com.dokke.app
+package com.eddesignerez.ezdeck
 
 import java.net.URI
 import java.net.Inet4Address
 import java.net.NetworkInterface
 
 /** Protocol helpers for the native Android companion layer. */
-internal object DokkeDiscovery {
-    const val MAGIC = "dokke:discover"
+internal object EzDeckDiscovery {
+    const val MAGIC = "ezdeck:discover"
 
-    private val replyPattern = Regex("^dokke:(\\d{1,3}(?:\\.\\d{1,3}){3}):(\\d{1,5})$")
-    private val healthPattern = Regex("^\\s*\\{\\s*\\\"ok\\\"\\s*:\\s*true\\s*,\\s*\\\"service\\\"\\s*:\\s*\\\"Dokke\\\"\\s*\\}\\s*$")
+    private val replyPattern = Regex("^ezdeck:(\\d{1,3}(?:\\.\\d{1,3}){3}):(\\d{1,5})$")
+    private val healthPattern = Regex("^\\s*\\{\\s*\\\"ok\\\"\\s*:\\s*true\\s*,\\s*\\\"service\\\"\\s*:\\s*\\\"EzDeck\\\"\\s*\\}\\s*$")
 
     /** Converts only a valid discovery reply into a canonical HTTP endpoint. */
     fun parseReply(raw: String?): String? {
@@ -31,8 +31,8 @@ internal object DokkeDiscovery {
         return "${uri.scheme}://${uri.rawAuthority}/health"
     }
 
-    /** Accepts only the minimal, public Dokke health contract. */
-    fun isDokkeHealth(statusCode: Int, body: String?): Boolean {
+    /** Accepts only the minimal, public EzDeck health contract. */
+    fun isEzDeckHealth(statusCode: Int, body: String?): Boolean {
         if (statusCode !in 200..299 || body.isNullOrBlank()) return false
         return healthPattern.matches(body)
     }

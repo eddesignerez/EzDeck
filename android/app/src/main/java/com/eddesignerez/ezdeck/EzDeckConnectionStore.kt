@@ -1,9 +1,9 @@
-package com.dokke.app
+package com.eddesignerez.ezdeck
 
 import android.content.SharedPreferences
 
 /** Persists only the last validated server endpoint. */
-internal object DokkeConnectionStore {
+internal object EzDeckConnectionStore {
     private const val KEY_SERVER_URL = "server_url"
 
     fun read(prefs: SharedPreferences): String? {

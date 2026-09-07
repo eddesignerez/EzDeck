@@ -17,6 +17,18 @@ test("inventário Windows resolve atalhos, ordena e remove nomes duplicados", as
   assert.equal(apps[0].path, "C:/apps/Chrome.exe");
 });
 
+test("inventário inclui aplicativos instalados pela Microsoft Store", async () => {
+  const apps = await scanWindowsApps({
+    directories: ["menu"],
+    findShortcuts: async () => ["menu/Chrome.lnk"],
+    runPowerShell: async () => ({ stdout: JSON.stringify([{ path: "menu/Chrome.lnk", targetPath: "C:/chrome.exe" }]) }),
+    listStoreApps: async () => [{ name: "Calculadora", appId: "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App" }],
+  });
+  assert.deepEqual(apps.map(app => app.name), ["Calculadora", "Chrome"]);
+  assert.equal(apps[0].path, "shell:AppsFolder\\Microsoft.WindowsCalculator_8wekyb3d8bbwe!App");
+  assert.equal(apps[0].store, true);
+});
+
 test("ações Windows só abrem caminho que veio do inventário e foco cai para abertura", async () => {
   const calls = [];
   const actions = createWindowsActions({

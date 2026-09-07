@@ -2,7 +2,7 @@ import { readFile, writeFile, rename } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import { createHash } from "node:crypto";
 
-const DEFAULT = { schemaVersion: 2, revision: 0, pieces: [], pinned: [] };
+const DEFAULT = { schemaVersion: 2, revision: 0, pieces: [], pinned: [], pageCount: 1 };
 export const PINNED_PAGE_SIZE = 8;
 export const PINNED_MAX_PAGES = 5;
 export const MAX_DOCK_SLOTS = PINNED_PAGE_SIZE * PINNED_MAX_PAGES;
@@ -183,6 +183,11 @@ export function normalizeConfig(raw) {
     revision: safeRevision(source.revision),
     pieces,
     pinned: piecesToPinned(pieces),
+    // Uma página é criada por padrão. Páginas extras são uma escolha explícita
+    // do usuário, mesmo vazias, para não poluir o launcher com slots inutilizados.
+    pageCount: Number.isInteger(source.pageCount)
+      ? Math.min(PINNED_MAX_PAGES, Math.max(1, source.pageCount))
+      : Math.max(1, Math.min(PINNED_MAX_PAGES, Math.ceil(pieces.reduce((max, piece) => Math.max(max, (piece.position ?? 0) + 1), 0) / PINNED_PAGE_SIZE))),
   };
 }
 

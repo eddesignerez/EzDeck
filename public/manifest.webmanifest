@@ -1,7 +1,7 @@
 {
-  "name": "Dokke",
-  "short_name": "Dokke",
-  "description": "Dock do Mac — apps e OBS Commander",
+  "name": "EzDeck",
+  "short_name": "EzDeck",
+  "description": "Painel de atalhos do Windows para Android e navegador",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",

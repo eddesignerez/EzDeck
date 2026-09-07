@@ -86,15 +86,15 @@ async function refreshVersion() {
     try {
       const ctrl = new AbortController();
       timer = setTimeout(() => ctrl.abort(), 5000);
-      const r = await fetch("https://github.com/felipenalves/Dokke/releases/latest",
+      const r = await fetch("https://github.com/eddesignerez/EzDeck/releases/latest",
         { redirect: "manual", signal: ctrl.signal });
       const loc = r.headers.get("location") || "";
       const m = loc.match(/\/releases\/tag\/([^/]+)$/);
       if (!m) return;
       versionCache.value = {
         tag: m[1],
-        htmlUrl: "https://github.com/felipenalves/Dokke/releases/tag/" + m[1],
-        apkUrl: "https://github.com/felipenalves/Dokke/releases/latest/download/dokke.apk",
+        htmlUrl: "https://github.com/eddesignerez/EzDeck/releases/tag/" + m[1],
+        apkUrl: "https://github.com/eddesignerez/EzDeck/releases/latest/download/ezdeck.apk",
       };
       versionCache.age = Date.now();
     } catch {
@@ -123,14 +123,14 @@ const SEC_HEADERS = {
 /** Respostas JSON de API — nunca podem ser cacheadas (dados em tempo real).
  *  Sem isso o browser/WebView pode cachear GET /api/* heuristicamente. */
 const JSON_HEADERS = {
-  "Content-Type": "application/json",
+  "Content-Type": "application/json; charset=utf-8",
   "Cache-Control": "no-store",
   ...SEC_HEADERS,
 };
 
 /** Detalhe fica no log do servidor; o cliente recebe mensagem genérica. */
 function fail(res, err, extra = {}) {
-  console.error("[dokke] erro interno:", err?.message ?? err);
+  console.error("[ezdeck] erro interno:", err?.message ?? err);
   res.writeHead(500, JSON_HEADERS);
   res.end(JSON.stringify({ ok: false, error: "erro interno", ...extra }));
 }
@@ -161,12 +161,12 @@ const STATUS_POLL_MS = 1500;
 
 /**
  * Descoberta automática de servidor (UDP broadcast) — o APK Android manda
- * "dokke:discover" em 255.255.255.255 e o servidor responde com seu IP:porta.
+ * "ezdeck:discover" em 255.255.255.255 e o servidor responde com seu IP:porta.
  * Assim o device acha o Mac mesmo quando o DHCP troca o IP (queda de luz,
  * reinício de roteador). Zero deps — dgram é builtin do Node.
  */
 const DISCOVERY_PORT = 3001;
-export const DISCOVERY_MAGIC = "dokke:discover";
+export const DISCOVERY_MAGIC = "ezdeck:discover";
 
 function ipv4ToInt(ip) {
   const parts = ip.split(".").map(Number);
@@ -200,7 +200,9 @@ function localIpFor(peerIp) {
 /** Endereços que podem ser informados ao companion no primeiro pareamento. */
 export function localLanAddresses() {
   const addresses = [];
-  for (const infos of Object.values(networkInterfaces())) {
+  const virtualWindowsAdapter = /(?:vEthernet|Hyper-V|WSL|Docker|ZeroTier|Tailscale|Virtual|Loopback)/i;
+  for (const [name, infos] of Object.entries(networkInterfaces())) {
+    if (process.platform === "win32" && virtualWindowsAdapter.test(name)) continue;
     for (const info of infos ?? []) {
       if (info.family === "IPv4" && !info.internal && !addresses.includes(info.address)) {
         addresses.push(info.address);
@@ -210,14 +212,14 @@ export function localLanAddresses() {
   return addresses;
 }
 
-/** Sobe o listener UDP que responde "dokke:<ip>:<porta>" pra quem perguntar. */
-export function startDiscovery(port = DISCOVERY_PORT, { portHint = 3000, log = console.log } = {}) {
+/** Sobe o listener UDP que responde "ezdeck:<ip>:<porta>" pra quem perguntar. */
+export function startDiscovery(port = DISCOVERY_PORT, { portHint = 3100, log = console.log } = {}) {
   const sock = createSocket("udp4");
   sock.on("message", (msg, rinfo) => {
     if (msg.toString("utf8").trim() !== DISCOVERY_MAGIC) return;
     const ip = localIpFor(rinfo.address);
     if (!ip) return;
-    const reply = `dokke:${ip}:${portHint}`;
+    const reply = `ezdeck:${ip}:${portHint}`;
     sock.send(reply, rinfo.port, rinfo.address);
     log(`[discover] ${rinfo.address}:${rinfo.port} → ${reply}`);
   });
@@ -264,6 +266,7 @@ function createStatusFeed({ readConfig, listProcesses, version = null }) {
       pieces: cfg.pieces,
       revision: cfg.revision,
       pinned: cfg.pinned,
+      pageCount: cfg.pageCount,
       running,
       devices: clients.size,
       ...(version ? { v: version() } : {}),
@@ -292,6 +295,9 @@ function createStatusFeed({ readConfig, listProcesses, version = null }) {
     },
     /** Empurra já (ex.: pin/unpin do Mac → device em <1s, sem esperar poll de 6s). */
     ping() { return broadcast(true); },
+    inventoryChanged() {
+      for (const ws of clients) sendTo(ws, { type: "installed" });
+    },
     clientCount() { return clients.size; },
     close() {
       if (timer) { clearInterval(timer); timer = null; }
@@ -309,6 +315,7 @@ export function makeApp(deps = {}) {
   const obs = deps.obs || null;
   const iconService = deps.iconService || platform.iconService;
   const onStatusChange = deps.onStatusChange || null;
+  const onInventoryChange = deps.onInventoryChange || null;
   const getDeviceCount = deps.getDeviceCount || null;
   const configFile = deps.configFile ?? (deps.config === undefined ? join(import.meta.dirname, "config.json") : null);
   const readConfig = async () => {
@@ -346,6 +353,7 @@ export function makeApp(deps = {}) {
         revision: safe.revision,
         pieces: safe.pieces,
         pinned: safe.pinned,
+        pageCount: safe.pageCount,
         limits: pinnedLimits(),
       };
     };
@@ -385,7 +393,7 @@ export function makeApp(deps = {}) {
       }
       return { ok: true, position: body.position };
     };
-    if (url.pathname === "/health") { res.writeHead(200, JSON_HEADERS); res.end(JSON.stringify({ ok: true, service: "Dokke" })); return; }
+    if (url.pathname === "/health") { res.writeHead(200, JSON_HEADERS); res.end(JSON.stringify({ ok: true, service: "EzDeck" })); return; }
     if (url.pathname === "/api/probe") {
       const flags = Object.fromEntries(url.searchParams);
       console.log("[probe]", JSON.stringify({ ua: req.headers["user-agent"], ...flags }));
@@ -406,6 +414,40 @@ export function makeApp(deps = {}) {
     const trustLoopback = deps.trustLoopback !== false;
     const auth = deps.auth;
     const ipOf = req.socket.remoteAddress || "?";
+    // Desktop-only control: a per-launch secret is inherited by the native
+    // window. Even paired LAN devices cannot register programs or stop a host.
+    if (url.pathname.startsWith("/api/windows/")) {
+      const host = deps.windowsHost;
+      if (!host || !isLoopback(ipOf) || !safeEqual(String(req.headers["x-ezdeck-host"] || ""), host.token)) {
+        respondError(403, { error: "Controle disponível somente na janela do Windows" });
+        return;
+      }
+      if (url.pathname === "/api/windows/actions" && req.method === "GET") {
+        host.actions.list().then(items => ok({ ok: true, actions: items })).catch(error => fail(res, error));
+      } else if (url.pathname === "/api/windows/status" && req.method === "GET") {
+        ok({ ok: true, pin: host.getPin?.() || null, address: host.address || null });
+      } else if (url.pathname === "/api/windows/actions" && req.method === "POST") {
+        readBody(req, res).then(body => {
+          if (body === BODY_TOO_BIG) return;
+          if (body === BODY_INVALID) { respondError(400, { error: "Cadastro inválido" }); return; }
+          return host.actions.save(body).then(action => ok({ ok: true, action })).catch(error => respondError(400, { error: error.message }));
+        });
+      } else if (url.pathname === "/api/windows/refresh-apps" && req.method === "POST") {
+        Promise.resolve()
+          .then(() => host.refreshApps?.())
+          .then(() => { ok({ ok: true }); if (onInventoryChange) onInventoryChange(); })
+          .catch(error => fail(res, error));
+      } else if (url.pathname === "/api/windows/actions/icon" && req.method === "POST") {
+        readBody(req, res).then(body => {
+          if (body === BODY_TOO_BIG || body === BODY_INVALID) { respondError(400, { error: "Ícone inválido" }); return; }
+          host.actions.setIcon(body?.name, body?.dataUrl).then(action => ok({ ok: true, action })).catch(error => respondError(400, { error: error.message }));
+        });
+      } else if (url.pathname === "/api/windows/shutdown" && req.method === "POST") {
+        ok({ ok: true });
+        setImmediate(() => host.shutdown());
+      } else respondError(404, { error: "Comando não encontrado" });
+      return;
+    }
     const authed = () =>
       (trustLoopback && isLoopback(ipOf)) ||
       (!!auth && typeof auth.checkSession === "function" && auth.checkSession(tokenFromCookie(req.headers.cookie)));
@@ -479,8 +521,8 @@ export function makeApp(deps = {}) {
       Promise.resolve()
         .then(() => readConfig())
         .then(cfg => appTools.listAppProcesses()
-          .then(running => ok({ pieces: cfg.pieces, revision: cfg.revision, pinned: cfg.pinned, running, v: appVersion(), limits: pinnedLimits() }))
-          .catch(() => ok({ pieces: cfg.pieces, revision: cfg.revision, pinned: cfg.pinned, running: [], v: appVersion(), limits: pinnedLimits() })))
+          .then(running => ok({ pieces: cfg.pieces, revision: cfg.revision, pinned: cfg.pinned, pageCount: cfg.pageCount, running, v: appVersion(), limits: pinnedLimits() }))
+          .catch(() => ok({ pieces: cfg.pieces, revision: cfg.revision, pinned: cfg.pinned, pageCount: cfg.pageCount, running: [], v: appVersion(), limits: pinnedLimits() })))
         .catch(err => fail(res, err));
       return;
     }
@@ -489,6 +531,23 @@ export function makeApp(deps = {}) {
         .then(() => readConfig())
         .then(cfg => ok({ ok: true, config: publicCfg(cfg) }))
         .catch(err => fail(res, err));
+      return;
+    }
+    // O launcher começa com uma única página de oito slots. Esta rota cria uma
+    // nova página vazia de forma persistente, sem preencher páginas intermediárias.
+    if (url.pathname === "/api/config/pages" && req.method === "POST") {
+      withConfigLock(() => Promise.resolve()
+        .then(() => readConfig())
+        .then(cfg => {
+          if (cfg.pageCount >= pinnedLimits().maxPages) {
+            const err = new Error(PINNED_LIMIT_MESSAGE); err.code = PINNED_LIMIT_CODE; throw err;
+          }
+          cfg.pageCount += 1;
+          cfg.revision += 1;
+          return persistConfig(cfg);
+        })
+        .then(cfg => { ok({ ok: true, config: publicCfg(cfg) }); if (onStatusChange) onStatusChange(); })
+        .catch(err => err?.code === PINNED_LIMIT_CODE ? rejectPinnedLimit() : fail(res, err)));
       return;
     }
     // POST = adiciona um; PUT = substitui a lista inteira (app Mac / bulk)
@@ -785,7 +844,7 @@ export function makeApp(deps = {}) {
         .then(() => readConfig())
         .then(cfg => ok({
           ok: true,
-          service: "Dokke",
+          service: "EzDeck",
           devices: typeof getDeviceCount === "function" ? getDeviceCount() : 0,
           pinned: cfg.pinned.length,
           config: {
@@ -923,7 +982,7 @@ export function makeApp(deps = {}) {
 export async function startServer(arg = {}) {
   const opts = typeof arg === "number" ? { port: arg } : (arg ?? {});
   const platform = opts.platform || createPlatform();
-  const port = opts.port ?? (process.env.PORT ? Number(process.env.PORT) : 3000);
+  const port = opts.port ?? (process.env.PORT ? Number(process.env.PORT) : 3100);
   const requestedHeartbeat = Number(opts.wsHeartbeatMs);
   const wsHeartbeatMs = Number.isFinite(requestedHeartbeat) && requestedHeartbeat >= 10
     ? requestedHeartbeat
@@ -939,18 +998,18 @@ export async function startServer(arg = {}) {
   // pasta de dados do usuário (sobrevive a reinstalação) — config + pin ficam aqui
   function userDataDir() {
     const home = process.env.HOME || process.env.USERPROFILE || ".";
-    if (process.platform === "win32") return join(process.env.APPDATA || home, "Dokke");
-    if (process.platform === "darwin") return join(home, "Library", "Application Support", "Dokke");
-    return join(process.env.XDG_CONFIG_HOME || join(home, ".config"), "dokke");
+    if (process.platform === "win32") return join(process.env.APPDATA || home, "EzDeck");
+    if (process.platform === "darwin") return join(home, "Library", "Application Support", "EzDeck");
+    return join(process.env.XDG_CONFIG_HOME || join(home, ".config"), "ezdeck");
   }
-  let dataDir = userDataDir();
+  let dataDir = opts.dataDir || userDataDir();
   try {
     mkdirSync(dataDir, { recursive: true });
   } catch {
     // Ambientes restritos (testes, portable/sandbox) podem negar APPDATA.
     // O host normal continua persistindo em APPDATA; o fallback impede que o
     // servidor deixe de iniciar por não conseguir criar o PIN.
-    dataDir = join(tmpdir(), "dokke");
+    dataDir = join(tmpdir(), "ezdeck");
     mkdirSync(dataDir, { recursive: true });
   }
   const userConfig = join(dataDir, "config.json");
@@ -966,14 +1025,25 @@ export async function startServer(arg = {}) {
   }
   const configFile = configProvided ? null : (opts.configFile ?? userConfig);
   // pin de acesso (4 dígitos): fixo em .j5-pin, só regenera via POST /api/pin
-  const pinRoot = opts.root ?? dataDir;
+  let pinRoot = opts.root ?? dataDir;
   if (!existsSync(join(pinRoot, ".j5-pin"))) {
     try {
       const legacy = join(import.meta.dirname, ".j5-pin");
       if (existsSync(legacy)) copyFileSync(legacy, join(pinRoot, ".j5-pin"));
     } catch {}
   }
-  let currentPin = await ensurePin(pinRoot);
+  let currentPin;
+  try {
+    currentPin = await ensurePin(pinRoot);
+  } catch (error) {
+    if (opts.root) throw error;
+    // Algumas políticas corporativas criam APPDATA mas bloqueiam escrita logo
+    // depois. Sem este fallback o host não sobe, embora o servidor possa rodar.
+    dataDir = join(tmpdir(), "ezdeck");
+    mkdirSync(dataDir, { recursive: true });
+    pinRoot = dataDir;
+    currentPin = await ensurePin(pinRoot);
+  }
   // sessões persistem no dataDir: reinício não desloga os kiosks
   const sessionStore = opts.sessionStore ?? createSessionStore({ file: join(dataDir, "j5-sessions.json") });
   opts.auth = {
@@ -1001,6 +1071,7 @@ export async function startServer(arg = {}) {
     platform,
     configFile: configFile ?? undefined,
     onStatusChange: () => feed.ping(),
+    onInventoryChange: () => feed.inventoryChanged(),
     getDeviceCount: () => feed.clientCount(),
   });
   const server = makeServer();
@@ -1017,8 +1088,8 @@ export async function startServer(arg = {}) {
   });
   // Mantém os dois EventEmitters protegidos também depois do startup. Sem estes
   // listeners, um erro encaminhado pelo ws pode terminar o processo Node.
-  server.on("error", error => console.error("[dokke] HTTP error:", error?.message ?? error));
-  wss.on("error", error => console.error("[dokke] WebSocket error:", error?.message ?? error));
+  server.on("error", error => console.error("[ezdeck] HTTP error:", error?.message ?? error));
+  wss.on("error", error => console.error("[ezdeck] WebSocket error:", error?.message ?? error));
   wss.on("connection", (ws) => {
     ws.isAlive = true;
     ws.on("pong", () => { ws.isAlive = true; });
@@ -1091,6 +1162,7 @@ export async function startServer(arg = {}) {
     closed = true;
     stopHeartbeat();
     feed.close();
+    for (const ws of wss.clients) ws.terminate();
     try { wss.close(); } catch (e) {}
     server.close(e => e ? reject(e) : resolve());
   });
@@ -1102,7 +1174,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const proto = (process.env.HTTPS_CERT && process.env.HTTPS_KEY) ? "https" : "http";
   startServer()
     .then(({ port, getPin }) => {
-      console.log(`Dokke ouvindo em http://127.0.0.1:${port}`);
+      console.log(`EzDeck ouvindo em http://127.0.0.1:${port}`);
       for (const ip of localLanAddresses()) console.log(`Android na mesma rede: http://${ip}:${port}`);
       console.log(`PIN de pareamento: ${getPin()}`);
       // responder descoberta UDP pra devices Android acharem o IP sozinhos

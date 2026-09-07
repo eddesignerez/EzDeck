@@ -1,4 +1,4 @@
-package com.dokke.app
+package com.eddesignerez.ezdeck
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
@@ -67,7 +67,7 @@ class MainActivity : ComponentActivity() {
     private var updateReceiverRegistered = false
     private var updateExpectedVersion: String? = null
 
-    private val updateApkBaseUrl = "https://github.com/felipenalves/Dokke/releases/download"
+    private val updateApkBaseUrl = "https://github.com/eddesignerez/EzDeck/releases/download"
     private val updateMime = "application/vnd.android.package-archive"
     private val updateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -135,7 +135,7 @@ class MainActivity : ComponentActivity() {
         setContentView(root)
 
         serverUrl = ServerUrl.normalize(getString(R.string.server_url)) ?: ""
-        DokkeConnectionStore.read(connectionPrefs)?.let { serverUrl = it }
+        EzDeckConnectionStore.read(connectionPrefs)?.let { serverUrl = it }
         // Permite override via Intent extra (fácil de testar via am), mas nunca
         // grava ou carrega uma URL fora do contrato HTTP(S) com host.
         intent.getStringExtra("server_url")?.let { applyServerUrl(it, persist = true) }
@@ -181,7 +181,7 @@ class MainActivity : ComponentActivity() {
             override fun onReceivedError(view: WebView?, request: android.webkit.WebResourceRequest?, error: android.webkit.WebResourceError?) {
                 val errorCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) error?.errorCode else null
                 val description = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) error?.description else null
-                Log.e("Dokke", "WebView error: $description ($errorCode) url=${request?.url}")
+                Log.e("EzDeck", "WebView error: $description ($errorCode) url=${request?.url}")
                 if (request?.isForMainFrame == true) {
                     mainFrameFailed = true
                     runOnUiThread { showOfflineScreen() }
@@ -197,7 +197,7 @@ class MainActivity : ComponentActivity() {
         }
         web.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(msg: ConsoleMessage): Boolean {
-                Log.d("Dokke", "[${msg.messageLevel()}] ${msg.message()} (${msg.sourceId()}:${msg.lineNumber()})")
+                Log.d("EzDeck", "[${msg.messageLevel()}] ${msg.message()} (${msg.sourceId()}:${msg.lineNumber()})")
                 return true
             }
             override fun onJsConfirm(view: WebView?, url: String?, message: String?, result: JsResult?): Boolean {
@@ -241,7 +241,7 @@ class MainActivity : ComponentActivity() {
             fun requestUpdate(version: String) {
                 runOnUiThread { beginUpdate(version) }
             }
-        }, "DokkeAndroid")
+        }, "EzDeckAndroid")
         if (serverUrl.isNotEmpty()) web.loadUrl(serverUrl) else showOfflineScreen()
         // descoberta automática: só troca quando o servidor salvo está inacessível —
         // um respondente falso na rede não sequestra um pareamento que funciona
@@ -252,18 +252,18 @@ class MainActivity : ComponentActivity() {
 
     /** O servidor atual responde ao health contract? Bloqueante: chamar fora da UI thread. */
     private fun currentServerHealthy(): Boolean {
-        return serverUrl.isNotEmpty() && verifyDokkeServer(serverUrl) != null
+        return serverUrl.isNotEmpty() && verifyEzDeckServer(serverUrl) != null
     }
 
     private fun applyServerUrl(raw: String?, persist: Boolean): Boolean {
         val normalized = ServerUrl.normalize(raw)
         if (normalized == null) {
-            Log.w("Dokke", "URL do servidor rejeitada: esquema inseguro, host inválido ou credenciais embutidas")
+            Log.w("EzDeck", "URL do servidor rejeitada: esquema inseguro, host inválido ou credenciais embutidas")
             return false
         }
         serverUrl = normalized
         if (persist) {
-            DokkeConnectionStore.save(connectionPrefs, normalized)
+            EzDeckConnectionStore.save(connectionPrefs, normalized)
         }
         return true
     }
@@ -277,7 +277,7 @@ class MainActivity : ComponentActivity() {
                 Toast.makeText(this, message("external.openError"), Toast.LENGTH_SHORT).show()
             }
         } else {
-            Log.w("Dokke", "navegação rejeitada fora da origem confiável: $raw")
+            Log.w("EzDeck", "navegação rejeitada fora da origem confiável: $raw")
         }
         return true
     }
@@ -287,14 +287,14 @@ class MainActivity : ComponentActivity() {
         runOnUiThread {
             if (found == serverUrl) return@runOnUiThread
             serverUrl = found
-            DokkeConnectionStore.save(connectionPrefs, found)
-            Log.i("Dokke", "servidor encontrado na rede: $found")
+            EzDeckConnectionStore.save(connectionPrefs, found)
+            Log.i("EzDeck", "servidor encontrado na rede: $found")
             hideOfflineScreen()
             web.loadUrl(found)
         }
     }
 
-    /** Pergunta na rede e só devolve um endpoint depois do health check Dokke. */
+    /** Pergunta na rede e só devolve um endpoint depois do health check EzDeck. */
     private fun discoverServer(onResult: (String?) -> Unit) {
         Thread {
             var found: String? = null
@@ -308,8 +308,8 @@ class MainActivity : ComponentActivity() {
                 socket.bind(InetSocketAddress(0))
                 // 255.255.255.255 é o padrão; o direcionado cobre redes que derrubam o global
                 val targets = mutableListOf("255.255.255.255")
-                DokkeDiscovery.directedBroadcast()?.let { targets.add(it) }
-                val discoverMagic = DokkeDiscovery.MAGIC.toByteArray(Charsets.UTF_8)
+                EzDeckDiscovery.directedBroadcast()?.let { targets.add(it) }
+                val discoverMagic = EzDeckDiscovery.MAGIC.toByteArray(Charsets.UTF_8)
                 loop@ for (target in targets) {
                     for (attempt in 1..2) {
                         try {
@@ -323,9 +323,9 @@ class MainActivity : ComponentActivity() {
                                 val pkt = DatagramPacket(buf, buf.size)
                                 socket.receive(pkt)
                                 val msg = String(buf, 0, pkt.length, Charsets.UTF_8)
-                                val candidate = DokkeDiscovery.parseReply(msg)
+                                val candidate = EzDeckDiscovery.parseReply(msg)
                                 if (candidate != null) {
-                                    found = verifyDokkeServer(candidate)
+                                    found = verifyEzDeckServer(candidate)
                                     if (found != null) {
                                         break@loop
                                     }
@@ -341,8 +341,8 @@ class MainActivity : ComponentActivity() {
     }
 
     /** UDP é apenas descoberta; a troca de endpoint exige o health contract. */
-    private fun verifyDokkeServer(candidate: String): String? {
-        val healthUrl = DokkeDiscovery.healthUrl(candidate) ?: return null
+    private fun verifyEzDeckServer(candidate: String): String? {
+        val healthUrl = EzDeckDiscovery.healthUrl(candidate) ?: return null
         val connection = try { URL(healthUrl).openConnection() as HttpURLConnection } catch (_: Exception) { return null }
         return try {
             connection.connectTimeout = 1200
@@ -350,7 +350,7 @@ class MainActivity : ComponentActivity() {
             connection.requestMethod = "GET"
             connection.useCaches = false
             val body = connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-            candidate.takeIf { DokkeDiscovery.isDokkeHealth(connection.responseCode, body) }
+            candidate.takeIf { EzDeckDiscovery.isEzDeckHealth(connection.responseCode, body) }
         } catch (_: Exception) {
             null
         } finally {
@@ -362,17 +362,17 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(newIntent)
         setIntent(newIntent)
         newIntent.getStringExtra("server_url")?.let { raw ->
-            // origem vinda de fora (outro app) só vale com health check Dokke —
+            // origem vinda de fora (outro app) só vale com health check EzDeck —
             // sem isso qualquer activity exportada sequestraria a conexão salva
             Thread {
                 val normalized = ServerUrl.normalize(raw)
-                val verified = normalized?.let { verifyDokkeServer(it) }
+                val verified = normalized?.let { verifyEzDeckServer(it) }
                 runOnUiThread {
                     if (verified != null && applyServerUrl(verified, persist = true)) {
                         hideOfflineScreen()
                         web.loadUrl(serverUrl)
                     } else if (normalized != null) {
-                        Log.w("Dokke", "server_url de intent rejeitada: sem health Dokke")
+                        Log.w("EzDeck", "server_url de intent rejeitada: sem health EzDeck")
                     }
                 }
             }.start()
@@ -454,8 +454,8 @@ class MainActivity : ComponentActivity() {
             return
         }
         val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val filename = "dokke-update-$version.apk"
-        val apkUrl = "$updateApkBaseUrl/$releaseTag/dokke.apk"
+        val filename = "ezdeck-update-$version.apk"
+        val apkUrl = "$updateApkBaseUrl/$releaseTag/ezdeck.apk"
         val request = DownloadManager.Request(Uri.parse(apkUrl))
             .setTitle(message("update.downloadTitle"))
             .setDescription(message("update.downloadDescription", mapOf("version" to version)))
@@ -470,7 +470,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun validateDownloadedApk(uri: Uri): Boolean {
-        val validationFile = File(cacheDir, "dokke-update-validation.apk")
+        val validationFile = File(cacheDir, "ezdeck-update-validation.apk")
         return try {
             val input = contentResolver.openInputStream(uri) ?: return false
             input.use { source -> validationFile.outputStream().use { target -> source.copyTo(target) } }
@@ -506,7 +506,7 @@ class MainActivity : ComponentActivity() {
             if (archiveCode <= installedCode) return false
             signaturesMatch(installed, archive)
         } catch (e: Exception) {
-            Log.e("Dokke", "Falha ao validar APK de atualização", e)
+            Log.e("EzDeck", "Falha ao validar APK de atualização", e)
             false
         } finally {
             validationFile.delete()

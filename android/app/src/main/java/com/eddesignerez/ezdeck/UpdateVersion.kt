@@ -1,4 +1,4 @@
-package com.dokke.app
+package com.eddesignerez.ezdeck
 
 internal object UpdateVersion {
     private val versionPattern = Regex("^v?(\\d+)(?:\\.(\\d+))?(?:\\.(\\d+))?$")

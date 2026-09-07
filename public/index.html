@@ -12,7 +12,7 @@
 <link rel="icon" media="(prefers-color-scheme: light)" type="image/png" href="/icon-192.png">
 <link rel="icon" media="(prefers-color-scheme: dark)" type="image/png" href="/icon-192-dark.png">
 <link rel="apple-touch-icon" href="/icon-192.png">
-  <title>Dokke</title>
+  <title>EzDeck</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -27,8 +27,8 @@
     --red: #ff453a;
     --glass: rgba(255,255,255,.07);
     --edge: rgba(255,255,255,.10);
-    --dokke-safe-top: env(safe-area-inset-top, 0px);
-    --dokke-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --ezdeck-safe-top: env(safe-area-inset-top, 0px);
+    --ezdeck-safe-bottom: env(safe-area-inset-bottom, 0px);
     --app-tile: min(40vmin, max(21vw,21vh), 180px);
     --icon-turn: 0deg;
   }
@@ -123,7 +123,7 @@
   /* ---- stage (launchpad full-bleed; chrome lateral removido) ---- */
   .stage{
     flex: 1 1 auto; min-height: 0; margin-top: 10px;
-    display: flex; flex-direction: column;
+    display: flex; flex-direction: column; position:relative;
     overflow: hidden;
   }
   .launchpadwrap{
@@ -131,6 +131,14 @@
     display: flex; flex-direction: column;
     overflow: hidden;
   }
+  .add-apps{
+    position:fixed; right:18px; bottom:22px; z-index:35;
+    display:flex; align-items:center; gap:7px; min-height:42px; padding:0 15px;
+    border:1px solid rgba(255,255,255,.24); border-radius:22px; cursor:pointer;
+    color:#fff; font:700 13px/1 system-ui,-apple-system,"Segoe UI",sans-serif;
+    background:rgba(10,132,255,.92); box-shadow:0 9px 24px rgba(0,0,0,.28);
+  }
+  .add-apps:active{ transform:scale(.97); }
   .launchpad{
     flex: 1 1 auto; min-height: 0;
     display: flex;
@@ -354,6 +362,8 @@
     width: 14px; height: 6px;
     border-radius: 3px;
   }
+  .add-page{ display:block; margin:0 auto 10px; min-height:32px; padding:0 13px; border:1px solid rgba(255,255,255,.22); border-radius:17px; background:rgba(255,255,255,.10); color:rgba(255,255,255,.92); font:700 12px/1 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  .add-page[hidden]{ display:none; }
 
   /* ---- vdots (lateral, troca de tela) ---- */
   .vdots{
@@ -746,7 +756,7 @@
 
 </style>
 </head>
-<body id="dokke">
+<body id="ezdeck">
   <div class="bg"></div>
 
   <main>
@@ -756,12 +766,14 @@
         <div class="launchpadwrap">
           <div class="launchpad" id="launchpad"><div class="launchpad-track" id="launchpadTrack"></div></div>
           <div class="dots" id="dots"></div>
+          <button class="add-page" id="addPage" type="button">＋ Adicionar página</button>
         </div>
       </div>
     </section>
     <section class="screen" id="screenRecents"></section>
   </div>
 </main>
+<button class="add-apps" id="addApps" type="button" data-i18n="dock.addApps">＋ Adicionar apps</button>
 
 <div class="vdots" id="vdots"></div>
 
@@ -772,17 +784,17 @@
       <div class="lkey" aria-hidden="true">
         <img src="/icon-192.png" alt="" aria-hidden="true" width="54" height="54">
       </div>
-      <h3 id="loginTitle" data-i18n="login.title">Conectar ao Dokke</h3>
-      <div class="body" data-i18n="login.description">Conecte o aparelho ao seu Mac para abrir os apps.</div>
+      <h3 id="loginTitle" data-i18n="login.title">Conectar ao EzDeck</h3>
+      <div class="body" data-i18n="login.description">Conecte o aparelho ao computador Windows para abrir os apps.</div>
       <ol class="lsteps">
-        <li><span class="lnum">1</span><div><p><span data-i18n="login.step1Prefix">Conecte o Mac e este aparelho à</span> <b data-i18n="login.sameNetwork">mesma rede Wi-Fi</b>.</p></div></li>
-        <li><span class="lnum">2</span><div><p><span data-i18n="login.step2Prefix">No Mac, abra o</span> <b>Dokke</b> <span data-i18n="login.step2Suffix">e escolha os apps que quer usar.</span></p></div></li>
-        <li><span class="lnum">3</span><div><p><span data-i18n="login.step3Prefix">Toque em</span> <b data-i18n="login.generateCode">Gerar novo código</b> <span data-i18n="login.step3Suffix">no Mac e digite o código de 4 dígitos aqui.</span></p></div></li>
+        <li><span class="lnum">1</span><div><p><span data-i18n="login.step1Prefix">Conecte o Windows e este aparelho à</span> <b data-i18n="login.sameNetwork">mesma rede Wi-Fi</b>.</p></div></li>
+        <li><span class="lnum">2</span><div><p><span data-i18n="login.step2Prefix">Depois de conectar, toque em</span> <b data-i18n="dock.addApps">＋ Adicionar apps</b> <span data-i18n="login.step2Suffix">para escolher os atalhos do Windows.</span></p></div></li>
+        <li><span class="lnum">3</span><div><p><span data-i18n="login.step3Prefix">No Windows, veja o</span> <b data-i18n="login.generateCode">código de 4 dígitos</b> <span data-i18n="login.step3Suffix">na janela do EzDeck e digite-o aqui.</span></p></div></li>
       </ol>
       <input id="loginPin" inputmode="numeric" autocomplete="one-time-code" maxlength="4" placeholder="••••" aria-label="Código de acesso" data-i18n-aria-label="login.pinLabel">
       <div class="lerr" id="loginErr"></div>
       <button class="btn connect" id="loginGo" data-i18n="login.connect">Conectar</button>
-      <p class="lfoot" data-i18n="footer.brand">Dokke by Felipe Natanael</p>
+      <p class="lfoot" data-i18n="footer.brand">EzDeck</p>
     </div>
   </div>
 
@@ -831,24 +843,24 @@
   const I18N = {
     "pt-BR": {
       "aria.language": "Idioma", "aria.selectLanguage": "Selecionar idioma", "aria.close": "Fechar",
-      "login.title": "Conectar ao Dokke", "login.description": "Conecte o aparelho ao seu Mac para abrir os apps.",
-      "login.step1Prefix": "Conecte o Mac e este aparelho à", "login.sameNetwork": "mesma rede Wi-Fi",
-      "login.step2Prefix": "No Mac, abra o", "login.step2Suffix": "e escolha os apps que quer usar.",
-      "login.step3Prefix": "Toque em", "login.generateCode": "Gerar novo código", "login.step3Suffix": "no Mac e digite o código de 4 dígitos aqui.",
+      "login.title": "Conectar ao EzDeck", "login.description": "Conecte o aparelho ao computador Windows para abrir os apps.",
+      "login.step1Prefix": "Conecte o Windows e este aparelho à", "login.sameNetwork": "mesma rede Wi-Fi",
+      "login.step2Prefix": "Depois de conectar, toque em", "login.step2Suffix": "para escolher os atalhos do Windows.",
+      "login.step3Prefix": "No Windows, veja o", "login.generateCode": "código de 4 dígitos", "login.step3Suffix": "na janela do EzDeck e digite-o aqui.",
       "login.pinLabel": "Código de acesso", "login.connect": "Conectar", "login.invalidCode": "Código inválido",
       "login.tooMany": "Muitas tentativas — aguarde um pouco.", "login.wrongCode": "Código errado.",
       "dock.openApps": "Apps abertos", "dock.apps": "Apps", "dock.pinned": "Favoritos", "dock.tapToOpen": "Toque em um app para abrir",
-      "recents.title": "Apps abertos", "recents.empty": "Nada aberto ainda — abra um app no Mac para ele aparecer aqui",
+      "recents.title": "Apps abertos", "recents.empty": "Nada aberto ainda — abra um app no Windows para ele aparecer aqui",
       "modal.pinTitle": "Fixar apps como favoritos",
-      "dock.opened": "aberto", "dock.noOpenApps": "Nada aberto ainda — abra um app no Mac para ele aparecer aqui",
-      "dock.pinApps": "Fixar apps como favoritos", "dock.pinSubtitle": "Escolha os apps que aparecem no Launchpad.",
+      "dock.opened": "aberto", "dock.noOpenApps": "Nada aberto ainda — abra um app no Windows para ele aparecer aqui",
+      "dock.pinApps": "Fixar apps como favoritos", "dock.pinSubtitle": "Escolha os atalhos do Windows que aparecem no painel.", "dock.addApps": "＋ Adicionar apps",
       "dock.pinnedLabel": "fixado", "dock.limit": "limite", "dock.pin": "+ fixar", "dock.close": "Fechar",
       "modal.removeWebsite": "Remover website dos favoritos?", "modal.removeApp": "Remover dos favoritos?",
       "modal.removeWebsiteBody": "\"{name}\" sai dos fixos.",
       "modal.removeAppBody": "\"{name}\" sai dos fixos. O app continua no Launchpad.",
       "modal.cancel": "Cancelar", "modal.removeConfirm": "Remover", "modal.stopAllTitle": "Encerrar transmissão?",
       "modal.stopAllBody": "O OBS vai parar a gravação e a live.", "modal.stopAll": "Encerrar tudo",
-      "toast.macDisconnected": "Mac desconectado", "toast.deviceConnected": "Dispositivo conectado",
+      "toast.macDisconnected": "Windows desconectado", "toast.deviceConnected": "Dispositivo conectado",
       "toast.pinAdded": "\"{name}\" adicionado aos favoritos", "toast.removed": "\"{name}\" removido",
       "toast.pinFailed": "Falha ao fixar", "toast.openFailed": "Não consegui abrir \"{name}\"",
       "toast.removeFailed": "Falha ao remover", "toast.dockChanged": "O dock mudou; tente novamente",
@@ -867,31 +879,31 @@
       "obs.unavailable": "OBS indisponível — verifique o WebSocket", "obs.live": "AO VIVO", "obs.connected": "conectado",
       "obs.startRecording": "Gravar", "obs.stopRecording": "Parar", "obs.startLive": "Live", "obs.stopLive": "Parar live", "obs.stopAll": "Encerrar",
       "obs.accessibility": "OBS, {status}",
-      "update.available": "Nova atualização do Dokke", "update.version": "Versão {version} disponível. Escolha quando baixar.",
-      "update.download": "Baixar", "update.reload": "Recarregar", "update.release": "Abrir release", "update.macTitle": "App do Mac desatualizado",
-      "update.macSubtitle": "Nova versão {version} disponível — atualize o Dokke no computador",
-      "update.close": "Fechar aviso", "site": "site", "footer.brand": "Dokke by Felipe Natanael"
+      "update.available": "Nova atualização do EzDeck", "update.version": "Versão {version} disponível. Escolha quando baixar.",
+      "update.download": "Baixar", "update.reload": "Recarregar", "update.release": "Abrir release", "update.macTitle": "App do Windows desatualizado",
+      "update.macSubtitle": "Nova versão {version} disponível — atualize o EzDeck no computador",
+      "update.close": "Fechar aviso", "site": "site", "footer.brand": "EzDeck"
     },
     en: {
       "aria.language": "Language", "aria.selectLanguage": "Select language", "aria.close": "Close",
-      "login.title": "Connect to Dokke", "login.description": "Connect this device to your Mac to open apps.",
-      "login.step1Prefix": "Connect your Mac and this device to the", "login.sameNetwork": "same Wi-Fi network",
-      "login.step2Prefix": "On your Mac, open", "login.step2Suffix": "and choose the apps you want to use.",
-      "login.step3Prefix": "Tap", "login.generateCode": "Generate new code", "login.step3Suffix": "on your Mac and enter the 4-digit code here.",
+      "login.title": "Connect to EzDeck", "login.description": "Connect this device to your computer to open apps.",
+      "login.step1Prefix": "Connect Windows and this device to the", "login.sameNetwork": "same Wi-Fi network",
+      "login.step2Prefix": "After connecting, tap", "login.step2Suffix": "to choose Windows shortcuts.",
+      "login.step3Prefix": "On Windows, find the", "login.generateCode": "4-digit code", "login.step3Suffix": "in the EzDeck window and enter it here.",
       "login.pinLabel": "Access code", "login.connect": "Connect", "login.invalidCode": "Invalid code",
       "login.tooMany": "Too many attempts — please wait a moment.", "login.wrongCode": "Wrong code.",
       "dock.openApps": "Open apps", "dock.apps": "Apps", "dock.pinned": "Favorites", "dock.tapToOpen": "Tap an app to open it",
-      "recents.title": "Open apps", "recents.empty": "Nothing open yet — open an app on your Mac to see it here",
+      "recents.title": "Open apps", "recents.empty": "Nothing open yet — open an app on Windows to see it here",
       "modal.pinTitle": "Pin apps as favorites",
-      "dock.opened": "open", "dock.noOpenApps": "Nothing open yet — open an app on your Mac to see it here",
-      "dock.pinApps": "Pin apps as favorites", "dock.pinSubtitle": "Choose the apps that appear in Launchpad.",
+      "dock.opened": "open", "dock.noOpenApps": "Nothing open yet — open an app on Windows to see it here",
+      "dock.pinApps": "Pin apps as favorites", "dock.pinSubtitle": "Choose the Windows shortcuts that appear in the panel.", "dock.addApps": "＋ Add apps",
       "dock.pinnedLabel": "pinned", "dock.limit": "limit", "dock.pin": "+ pin", "dock.close": "Close",
       "modal.removeWebsite": "Remove website from favorites?", "modal.removeApp": "Remove from favorites?",
       "modal.removeWebsiteBody": "\"{name}\" will be unpinned.",
       "modal.removeAppBody": "\"{name}\" will be unpinned. The app stays in Launchpad.",
       "modal.cancel": "Cancel", "modal.removeConfirm": "Remove", "modal.stopAllTitle": "Stop broadcast?",
       "modal.stopAllBody": "OBS will stop recording and the live stream.", "modal.stopAll": "Stop everything",
-      "toast.macDisconnected": "Mac disconnected", "toast.deviceConnected": "Device connected",
+      "toast.macDisconnected": "Windows disconnected", "toast.deviceConnected": "Device connected",
       "toast.pinAdded": "\"{name}\" added to favorites", "toast.removed": "\"{name}\" removed",
       "toast.pinFailed": "Failed to pin", "toast.openFailed": "Could not open \"{name}\"",
       "toast.removeFailed": "Failed to remove", "toast.dockChanged": "The dock changed; try again",
@@ -910,10 +922,10 @@
       "obs.unavailable": "OBS unavailable — check the WebSocket", "obs.live": "LIVE", "obs.connected": "connected",
       "obs.startRecording": "Record", "obs.stopRecording": "Stop", "obs.startLive": "Live", "obs.stopLive": "Stop live", "obs.stopAll": "Stop",
       "obs.accessibility": "OBS, {status}",
-      "update.available": "New Dokke update", "update.version": "Version {version} is available. Choose when to download it.",
-      "update.download": "Download", "update.reload": "Reload", "update.release": "Open release", "update.macTitle": "Mac app is out of date",
-      "update.macSubtitle": "Version {version} is available — update Dokke on your computer",
-      "update.close": "Close notice", "site": "site", "footer.brand": "Dokke by Felipe Natanael"
+      "update.available": "New EzDeck update", "update.version": "Version {version} is available. Choose when to download it.",
+      "update.download": "Download", "update.reload": "Reload", "update.release": "Open release", "update.macTitle": "Windows app is out of date",
+      "update.macSubtitle": "Version {version} is available — update EzDeck on your computer",
+      "update.close": "Close notice", "site": "site", "footer.brand": "EzDeck"
     }
   };
   function detectLanguage(language = navigator.language){
@@ -1005,7 +1017,7 @@
     window.visualViewport.addEventListener("scroll", syncLoginViewport);
   }
   function syncLoginOrientation(){
-    const android = window.DokkeAndroid;
+    const android = window.EzDeckAndroid;
     if (!android || typeof android.setLoginPortrait !== "function") return;
     try { android.setLoginPortrait(loginOpen); } catch (e) {}
   }
@@ -1044,7 +1056,7 @@
         // tira o foco do input pra o teclado recuar (mobile/WebView)
         const active = document.activeElement;
         if (active && active.blur) active.blur();
-        try { if (window.DokkeAndroid) window.DokkeAndroid.hideKeyboard(); } catch (e) {}
+        try { if (window.EzDeckAndroid) window.EzDeckAndroid.hideKeyboard(); } catch (e) {}
         hideLogin();
         boot();
       } else if (r && r.status === 429){
@@ -1145,6 +1157,7 @@
     maxPinnedApps: DEFAULT_MAX_PINNED_APPS,
     maxPinnedPieces: DEFAULT_MAX_PINNED_APPS,
     maxPinnedPages: DEFAULT_MAX_PINNED_PAGES,
+    pageCount: 1,
     installedReady: false,
     obs: { connected: false, error: false, scenes: [], scene: null, recording: false, streaming: false },
     obsTimer: null,
@@ -1269,7 +1282,7 @@
     const pid = run && Number.isInteger(run.pid) && run.pid > 0 ? run.pid : undefined;
     let r;
     try { r = await post("/api/apps/" + encodeURIComponent(name) + "/activate", { pid: pid }); }
-    catch (e) { toast(t("toast.macDisconnected"), "err"); return; }
+    catch (e) { toast(t("toast.openFailed", { name: name }), "err"); return; }
     if (!r || r.data.ok !== true) toast(t("toast.openFailed", { name: name }), "err");
     else loadApps();
   }
@@ -1291,7 +1304,7 @@
     let r;
     try { r = await post("/api/config/pinned", { app: name }); }
     catch (e) { toast(t("toast.macDisconnected"), "err"); return; }
-    if (r && r.data.ok === true){ toast(t("toast.pinAdded", { name: name })); loadApps(); }
+    if (r && r.data.ok === true){ toast(t("toast.pinAdded", { name: name })); await loadApps(); }
     else if (r && r.data && r.data.code === "PINNED_LIMIT_REACHED") {
       applyPinnedLimits(r.data.limits);
       toast(serverErrorMessage(r.data, "toast.pinFailed", { pages: state.maxPinnedPages }), "err");
@@ -1303,7 +1316,7 @@
     let r;
     try { r = await req("/api/config/pinned/" + encodeURIComponent(name), { method: "DELETE", timeout: 4000 }); }
     catch (e) { toast(t("toast.macDisconnected"), "err"); return; }
-    if (r.data && r.data.ok === true){ toast(t("toast.removed", { name: name })); loadApps(); }
+    if (r.data && r.data.ok === true){ toast(t("toast.removed", { name: name })); await loadApps(); }
     else toast(t("toast.removeFailed"), "err");
   }
 
@@ -1513,7 +1526,7 @@
     loadIcon(name, null, null);
   }
   function triggerHaptic(){
-    const android = window.DokkeAndroid;
+    const android = window.EzDeckAndroid;
     if (android && typeof android.performHapticFeedback === "function"){
       try {
         android.performHapticFeedback();
@@ -1640,9 +1653,7 @@
       }
     }
     const pz = pageSize();
-    // O PWA apenas espelha os slots persistidos; a criação de uma nova peça
-    // acontece no picker do host Mac, onde cada célula vazia tem seu Add.
-    const pageCount = Math.max(1, Number(state.maxPinnedPages) || DEFAULT_MAX_PINNED_PAGES);
+    const pageCount = Math.max(1, Math.min(state.maxPinnedPages, Number(state.pageCount) || 1));
     const slotCount = pageCount * pz;
     const list = Array.from({ length: slotCount }, function(_, position){
       return byPosition.get(position) || null;
@@ -1668,6 +1679,7 @@
     replaceChildren(launchpadTrack, kids);
     const page = Math.min(prev, pages.length - 1);
     renderDots();
+    $("addPage").hidden = pageCount >= state.maxPinnedPages;
     launchpad.scrollLeft = page * launchpad.clientWidth;
     if (launchpadTrack){
       launchpadTrack.style.transition = "";
@@ -1991,6 +2003,7 @@
       row.dataset.name = a.name;
       if (a.icon){
         const img = document.createElement("img");
+        img.loading = "lazy";
         img.src = iconPath(a.name);
         img.alt = "";
         img.onerror = function(){
@@ -2011,10 +2024,13 @@
       pin.textContent = pinned ? "✓ " + t("dock.pinnedLabel") : (limitReached ? t("dock.limit") : t("dock.pin"));
       if (limitReached) pin.style.color = "var(--amber)";
       row.appendChild(pin);
-      makeBtn(row, a.name + (pinned ? ", " + t("dock.pinnedLabel") : ", " + t("dock.pin")), function(el){
-        if (state.pinned.indexOf(el.dataset.name) !== -1) unpinApp(el.dataset.name);
+      let saving = false;
+      makeBtn(row, a.name + (pinned ? ", " + t("dock.pinnedLabel") : ", " + t("dock.pin")), async function(el){
+        if (saving) return;
+        saving = true;
+        if (state.pinned.indexOf(el.dataset.name) !== -1) await unpinApp(el.dataset.name);
         else if (state.pieces.length >= state.maxPinnedPieces) toast(pinnedLimitMessage(), "err");
-        else pinApp(el.dataset.name);
+        else await pinApp(el.dataset.name);
         openPinSheet();
       });
       kids.push(row);
@@ -2033,6 +2049,33 @@
     lastFocus = document.activeElement;
     modalFocus();
   }
+
+  $("addPage").addEventListener("click", async function(){
+    const r = await post("/api/config/pages");
+    if (r.status !== 200 || !r.data?.config){ toast(serverErrorMessage(r.data, "toast.pinFailed"), "err"); return; }
+    const cfg = r.data.config;
+    applyAppsPayload(cfg.pieces, cfg.pinned, state.running, cfg.limits, cfg.revision, cfg.pageCount);
+    renderLaunchpad(true);
+    launchpad.scrollLeft = (cfg.pageCount - 1) * launchpad.clientWidth;
+  });
+
+  $("addApps").addEventListener("click", async function(){
+    const button = $("addApps");
+    button.disabled = true;
+    button.textContent = currentLanguage === "en" ? "Loading…" : "Carregando…";
+    try {
+      const response = await req("/api/apps/installed", { timeout: 20000 });
+      if (response.status !== 200 || !response.data || !Array.isArray(response.data.apps)) throw new Error("inventory");
+      state.installed = response.data.apps;
+      state.installedReady = true;
+      openPinSheet();
+    } catch (error) {
+      toast(currentLanguage === "en" ? "Could not load apps. Check EzDeck on Windows." : "Não foi possível listar os apps. Confira o EzDeck no Windows.", "err");
+    } finally {
+      button.disabled = false;
+      button.textContent = t("dock.addApps");
+    }
+  });
 
   // ---------- OBS (drawer) ----------
   function renderObs(){
@@ -2299,7 +2342,7 @@
     launchpadRenderPending = false;
     renderLaunchpad(true);
   }
-  function applyAppsPayload(pieces, pinned, running, limits, revision){
+  function applyAppsPayload(pieces, pinned, running, limits, revision, pageCount){
     if (!Array.isArray(pieces) || !Array.isArray(pinned) || !Array.isArray(running)) return false;
     const nextPieces = pieces.length && typeof pieces[0] === "object"
       ? pieces
@@ -2307,12 +2350,14 @@
     applyPinnedLimits(limits);
     const nextSig = nextPieces.map(function(piece){ return piece.id; }).join("\u0000");
     const pinnedChanged = nextSig !== pinnedSig;
+    const pageChanged = Number.isInteger(pageCount) && pageCount > 0 && pageCount !== state.pageCount;
     pinnedSig = nextSig;
     state.pieces = nextPieces;
     state.pinned = Array.isArray(pinned) ? pinned : nextPieces.filter(function(piece){ return piece.type === "app"; }).map(function(piece){ return piece.name; });
     state.revision = Number.isInteger(revision) ? revision : state.revision;
+    if (Number.isInteger(pageCount) && pageCount > 0) state.pageCount = pageCount;
     state.running = running;
-    if (pinnedChanged){
+    if (pinnedChanged || pageChanged){
       if (document.body.classList.contains("swiping")) launchpadRenderPending = true;
       else renderLaunchpad(true); // Tela 1 = favoritos; refaz quando pinned muda
     }
@@ -2359,7 +2404,9 @@
       } else if (m.type === "apps"){
         state.online = true;
         maybeReloadForUi(m.v);
-        applyAppsPayload(m.pieces || m.pinned, m.pinned, m.running, m.limits, m.revision);
+        applyAppsPayload(m.pieces || m.pinned, m.pinned, m.running, m.limits, m.revision, m.pageCount);
+      } else if (m.type === "installed"){
+        loadInstalled();
       }
     };
     ws.onclose = function(){
@@ -2395,7 +2442,7 @@
         if (Array.isArray(r.data && (r.data.pieces || r.data.pinned)) && Array.isArray(r.data && r.data.running)){
           ok = true;
           maybeReloadForUi(r.data.v);
-          applyAppsPayload(r.data.pieces || r.data.pinned, r.data.pinned, r.data.running, r.data.limits, r.data.revision);
+          applyAppsPayload(r.data.pieces || r.data.pinned, r.data.pinned, r.data.running, r.data.limits, r.data.revision, r.data.pageCount);
         }
       }
     } catch (e) { /* offline: keep last view */ }
@@ -3026,12 +3073,12 @@
     $("upTitle").textContent = title;
     $("upSub").textContent = sub;
     const download = $("upDownload");
-    const isAndroid = !!(window.DokkeAndroid && window.DokkeAndroid.requestUpdate);
+    const isAndroid = !!(window.EzDeckAndroid && window.EzDeckAndroid.requestUpdate);
     download.textContent = isAndroid ? t("update.download") : t("update.release");
     download.onclick = function(e){
       e.stopPropagation();
       if (isAndroid){
-        try { window.DokkeAndroid.requestUpdate(String(version || "")); } catch (err) {}
+        try { window.EzDeckAndroid.requestUpdate(String(version || "")); } catch (err) {}
         return;
       }
       window.open(href, "_blank");
@@ -3063,7 +3110,7 @@
         // Android só avisa depois que a release existe no GitHub. O Android e
         // o Mac têm ciclos de release independentes: qualquer falha ao ler a
         // versão do APK deve encerrar este fluxo, sem cair no alerta do Mac.
-        const android = window.DokkeAndroid;
+        const android = window.EzDeckAndroid;
         const isAndroid = !!(android && typeof android.requestUpdate === "function");
         if (isAndroid) {
           let apkNow = "";
@@ -3078,7 +3125,7 @@
           if (cmpVer(rel.tag, apkNow) > 0){
             showUpBanner(t("update.available"),
               t("update.version", { version: rel.tag }),
-              rel.apkUrl || "https://github.com/felipenalves/Dokke/releases/latest/download/dokke.apk",
+              rel.apkUrl || "https://github.com/eddesignerez/EzDeck/releases/latest/download/ezdeck.apk",
               rel.tag);
           }
           return;
@@ -3087,7 +3134,7 @@
         if (rel && rel.tag && cmpVer(rel.tag, v.local.tag) > 0){
           showUpBanner(t("update.macTitle"),
             t("update.macSubtitle", { version: rel.tag }),
-            rel.htmlUrl || "https://github.com/felipenalves/Dokke/releases/latest");
+            rel.htmlUrl || "https://github.com/eddesignerez/EzDeck/releases/latest");
         }
       })
       .catch(function(){});
@@ -3106,7 +3153,7 @@
   boot();
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js?rev=dokke-v24").catch(function() {});
+    navigator.serviceWorker.register("/sw.js?rev=ezdeck-v3").catch(function() {});
   }
 })();</script>
 </body>

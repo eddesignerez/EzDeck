@@ -1,4 +1,4 @@
-package com.dokke.app
+package com.eddesignerez.ezdeck
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
