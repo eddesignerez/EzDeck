@@ -23,7 +23,8 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.1",
-    "playwright": "^1.62.1"
+    "playwright": "^1.62.1",
+    "typescript": "^7.0.2"
   },
   "optionalDependencies": {
     "ds-store": "^0.1.6"

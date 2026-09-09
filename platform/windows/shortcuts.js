@@ -15,7 +15,7 @@ export function parseShortcut(value) {
 
 // SendInput injects key-down and key-up together. No command or script text
 // comes from a client; only allowlisted numeric virtual key codes reach C#.
-const SEND_KEYS = `Add-Type @'
+const SEND_KEYS = `if (-not ('EzDeckKeyboard' -as [type])) { Add-Type @'
 using System;
 using System.Runtime.InteropServices;
 public static class EzDeckKeyboard {
@@ -39,7 +39,10 @@ public static class EzDeckKeyboard {
   }
 }
 '@
+}
 [EzDeckKeyboard]::Send([UInt16[]]($args[0] -split ','))`;
+
+export const KEYBOARD_WARMUP = SEND_KEYS.slice(0, SEND_KEYS.lastIndexOf('[EzDeckKeyboard]::Send'));
 
 export async function sendShortcut(combo, run = runPowerShell) {
   await run(SEND_KEYS, [parseShortcut(combo).codes.join(",")]);

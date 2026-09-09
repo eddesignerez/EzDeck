@@ -14,7 +14,6 @@ const backgroundSvgPath = path.join(projectRoot, 'mac', 'dmg-background.svg');
 const backgroundFileName = 'dmg-background.png';
 const macOnly = process.platform === 'darwin' ? {} : { skip: 'DMG packaging requires macOS' };
 const expectedPublicFiles = [
-  'dokke.apk',
   'icon-192-dark.png',
   'icon-192.png',
   'icon-512.png',

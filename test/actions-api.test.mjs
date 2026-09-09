@@ -22,7 +22,7 @@ test("POST /api/apps/:name/activate foca via actions com pid", async () => {
       body: JSON.stringify({ pid: 1234 }),
     });
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { ok: true });
+    const result=await r.json();assert.equal(result.ok,true);assert.ok(result.elapsedMs>=0);
     assert.deepEqual(called, { name: "Chrome", pid: 1234 });
   } finally { await close(); }
 });
@@ -37,7 +37,7 @@ test("POST activate sem body trata pid como undefined (abre)", async () => {
     const r = await fetch(`http://127.0.0.1:${port}/api/apps/TextEdit/activate`, { method: "POST" });
     assert.equal(r.status, 200);
     const d = await r.json();
-    assert.deepEqual(d, { ok: true });
+    assert.equal(d.ok,true);assert.ok(d.elapsedMs>=0);
     assert.deepEqual(called, { name: "TextEdit", pid: undefined });
   } finally { await close(); }
 });

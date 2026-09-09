@@ -204,7 +204,8 @@ class MainActivity : ComponentActivity() {
                 result?.confirm(); return true
             }
         }
-        web.clearCache(true)
+        // Mantém os arquivos estáticos em cache entre aberturas. As mudanças
+        // de ícones chegam pelo WebSocket e invalidam só o que mudou.
         web.addJavascriptInterface(object {
             @android.webkit.JavascriptInterface
             fun hideKeyboard() {

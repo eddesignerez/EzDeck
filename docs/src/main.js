@@ -2,7 +2,7 @@ import "./style.css";
 
 const downloads = {
   mac: "https://github.com/felipenalves/Dokke/releases/latest/download/Dokke-macOS.dmg",
-  android: "https://github.com/felipenalves/Dokke/releases/latest/download/dokke.apk",
+  android: "https://github.com/eddesignerez/EzDeck/releases",
 };
 const communityUrl = "https://documenteclub.vercel.app/";
 const dokkeHeroIcon = `${import.meta.env.BASE_URL}dokke-hero.webp`;

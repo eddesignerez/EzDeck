@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const source = await readFile(new URL("../android/app/src/main/java/com/dokke/app/MainActivity.kt", import.meta.url), "utf8");
+const source = await readFile(new URL("../android/app/src/main/java/com/eddesignerez/ezdeck/MainActivity.kt", import.meta.url), "utf8");
 const manifest = await readFile(new URL("../android/app/src/main/AndroidManifest.xml", import.meta.url), "utf8");
 
 test("APK expõe haptic contextual pelo bridge sem forçar vibração", () => {

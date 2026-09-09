@@ -230,6 +230,8 @@ test("GET / inclui PWA manifest link, apple-mobile-web-app e service worker", as
     assert.match(html, /rel="apple-touch-icon"/, "apple-touch-icon deve existir");
     assert.match(html, /rel="icon"[^>]*media="\(prefers-color-scheme: light\)"[^>]*href="\/icon-192\.png"/, "favicon claro deve existir");
     assert.match(html, /rel="icon"[^>]*media="\(prefers-color-scheme: dark\)"[^>]*href="\/icon-192-dark\.png"/, "favicon escuro deve existir");
+    assert.match(html, /id="themeToggle"/, "APK e navegador devem ter controle de modo claro/escuro");
+    assert.match(html, /localStorage\.getItem\(key\)/, "a preferência de tema deve ser preservada no aparelho");
     assert.match(html, /viewport-fit=cover/, "viewport-fit=cover deve estar no viewport meta");
     assert.match(html, /serviceWorker/, "deve registrar service worker");
     assert.match(html, /\/sw\.js/, "deve referenciar sw.js");
@@ -402,7 +404,7 @@ test("Android atualizado não exibe o banner de atualização do Mac host", asyn
         body: JSON.stringify({
           ok: true,
           local: { tag: "v0.2.6", apkVersion: "0.2.6" },
-          latest: { tag: "v0.2.7", apkUrl: "https://example.test/dokke.apk" }
+          latest: { tag: "v0.2.7", apkUrl: "https://example.test/ezdeck.apk" }
         })
       });
     });
@@ -434,7 +436,7 @@ test("falha ao ler versão do Android não cai no banner do Mac", async () => {
         body: JSON.stringify({
           ok: true,
           local: { tag: "v0.2.6", apkVersion: "0.2.6" },
-          latest: { tag: "v0.2.7", apkUrl: "https://example.test/dokke.apk" }
+          latest: { tag: "v0.2.7", apkUrl: "https://example.test/ezdeck.apk" }
         })
       });
     });

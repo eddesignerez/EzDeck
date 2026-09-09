@@ -135,14 +135,14 @@ function fail(res, err, extra = {}) {
   res.end(JSON.stringify({ ok: false, error: "erro interno", ...extra }));
 }
 
-function readBody(req, res) {
+function readBody(req, res, maxBytes = BODY_MAX_BYTES) {
   return new Promise(resolve => {
     let body = "";
     let big = false;
     req.on("data", c => {
       if (big) return;
       body += c;
-      if (Buffer.byteLength(body, "utf8") > BODY_MAX_BYTES) {
+      if (Buffer.byteLength(body, "utf8") > maxBytes) {
         big = true;
         res.writeHead(413, JSON_HEADERS);
         res.end(JSON.stringify({ ok: false, error: "corpo grande demais" }));
@@ -422,25 +422,53 @@ export function makeApp(deps = {}) {
         respondError(403, { error: "Controle disponível somente na janela do Windows" });
         return;
       }
-      if (url.pathname === "/api/windows/actions" && req.method === "GET") {
+      if (url.pathname === '/api/windows/startup' && req.method === 'GET') {
+        Promise.resolve(host.startup?.enabled() ?? false).then(enabled=>ok({ok:true,enabled})).catch(error=>fail(res,error));
+      } else if(url.pathname === '/api/windows/startup' && req.method === 'POST') {
+        readBody(req,res).then(async body=>{
+          if(body===BODY_TOO_BIG)return;
+          if(body===BODY_INVALID){respondError(400,{error:'Opção inválida'});return}
+          if(!host.startup||typeof body?.enabled!=='boolean'){respondError(400,{error:'Opção inválida'});return}
+          ok({ok:true,enabled:await host.startup.set(body.enabled)});
+        }).catch(error=>fail(res,error));
+      } else if (url.pathname === "/api/windows/actions" && req.method === "GET") {
         host.actions.list().then(items => ok({ ok: true, actions: items })).catch(error => fail(res, error));
       } else if (url.pathname === "/api/windows/status" && req.method === "GET") {
-        ok({ ok: true, pin: host.getPin?.() || null, address: host.address || null });
+        // O endereço pode ser resolvido depois de o host iniciar. Isso evita
+        // atrasar a primeira abertura apenas para consultar a rede do Windows.
+        const address = typeof host.address === "function" ? host.address() : host.address;
+        ok({ ok: true, pin: host.getPin?.() || null, port: host.getPort?.() || null, address: address || null });
       } else if (url.pathname === "/api/windows/actions" && req.method === "POST") {
         readBody(req, res).then(body => {
           if (body === BODY_TOO_BIG) return;
           if (body === BODY_INVALID) { respondError(400, { error: "Cadastro inválido" }); return; }
-          return host.actions.save(body).then(action => ok({ ok: true, action })).catch(error => respondError(400, { error: error.message }));
+          return host.actions.save(body).then(action => {
+            ok({ ok: true, action });
+            if (onInventoryChange) onInventoryChange();
+          }).catch(error => respondError(400, { error: error.message }));
         });
+      } else if (url.pathname.startsWith("/api/windows/actions/") && req.method === "DELETE") {
+        let name;
+        try { name = decodeURIComponent(url.pathname.slice("/api/windows/actions/".length)); }
+        catch { respondError(400, { error: "Nome inválido" }); return; }
+        host.actions.remove(name)
+          .then(result => {
+            if (!result.removed) return respondError(404, { error: "Item personalizado não encontrado" });
+            ok({ ok: true, ...result });
+            if (onInventoryChange) onInventoryChange();
+          })
+          .catch(error => fail(res, error));
       } else if (url.pathname === "/api/windows/refresh-apps" && req.method === "POST") {
         Promise.resolve()
           .then(() => host.refreshApps?.())
           .then(() => { ok({ ok: true }); if (onInventoryChange) onInventoryChange(); })
           .catch(error => fail(res, error));
       } else if (url.pathname === "/api/windows/actions/icon" && req.method === "POST") {
-        readBody(req, res).then(body => {
+        readBody(req, res, 2 * 1024 * 1024).then(body => {
           if (body === BODY_TOO_BIG || body === BODY_INVALID) { respondError(400, { error: "Ícone inválido" }); return; }
-          host.actions.setIcon(body?.name, body?.dataUrl).then(action => ok({ ok: true, action })).catch(error => respondError(400, { error: error.message }));
+          host.actions.setIcon(body?.name, body?.dataUrl)
+            .then(action => { ok({ ok: true, action }); if (onInventoryChange) onInventoryChange(); })
+            .catch(error => respondError(400, { error: error.message }));
         });
       } else if (url.pathname === "/api/windows/shutdown" && req.method === "POST") {
         ok({ ok: true });
@@ -502,10 +530,13 @@ export function makeApp(deps = {}) {
         return;
       }
       if (req.method === "POST") {
-        Promise.resolve()
-          .then(async () => { const p = newPin(); await auth.setPin(p); return p; })
-          .then(p => ok({ ok: true, pin: p }))
-          .catch(err => fail(res, err));
+        readBody(req, res).then(body => {
+          if (body === BODY_TOO_BIG || body === BODY_INVALID) { respondError(400, { error: "PIN inválido" }); return; }
+          const requested = typeof body?.pin === "string" ? body.pin.trim() : "";
+          const p = requested || newPin();
+          if (!/^\d{4}$/.test(p)) { respondError(400, { error: "O PIN deve ter 4 números" }); return; }
+          auth.setPin(p).then(() => ok({ ok: true, pin: p })).catch(err => fail(res, err));
+        });
         return;
       }
       ok({ ok: true, pin: auth.getPin() });
@@ -884,8 +915,9 @@ export function makeApp(deps = {}) {
           }
           let pid = body?.pid;
           if (!(Number.isInteger(pid) && pid > 0)) pid = undefined;
+          const started = performance.now();
           actions.activateApp({ name, pid })
-            .then(() => ok({ ok: true }))
+            .then(() => ok({ ok: true, elapsedMs: Math.round((performance.now()-started)*10)/10 }))
             .then(() => { if (onStatusChange) onStatusChange(); })
             .catch(err => fail(res, err));
         });
@@ -911,7 +943,9 @@ export function makeApp(deps = {}) {
           }
           res.writeHead(200, {
             "Content-Type": "image/png",
-            "Cache-Control": "public, max-age=86400",
+            // Um ícone personalizado pode ser trocado mantendo o mesmo nome
+            // de ação. Não reutilize a imagem anterior do cache do navegador.
+            "Cache-Control": "no-store, max-age=0",
             ...SEC_HEADERS,
           });
           res.end(buf);

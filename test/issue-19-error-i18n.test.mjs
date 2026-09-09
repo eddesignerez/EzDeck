@@ -5,8 +5,8 @@ import test from "node:test";
 const [html, server, android, androidLanguage, dockStore, languageStore] = await Promise.all([
   readFile(new URL("../public/index.html", import.meta.url), "utf8"),
   readFile(new URL("../server.js", import.meta.url), "utf8"),
-  readFile(new URL("../android/app/src/main/java/com/dokke/app/MainActivity.kt", import.meta.url), "utf8"),
-  readFile(new URL("../android/app/src/main/java/com/dokke/app/AndroidLanguage.kt", import.meta.url), "utf8"),
+  readFile(new URL("../android/app/src/main/java/com/eddesignerez/ezdeck/MainActivity.kt", import.meta.url), "utf8"),
+  readFile(new URL("../android/app/src/main/java/com/eddesignerez/ezdeck/AndroidLanguage.kt", import.meta.url), "utf8"),
   readFile(new URL("../mac/Sources/DockStore.swift", import.meta.url), "utf8"),
   readFile(new URL("../mac/Sources/LanguageStore.swift", import.meta.url), "utf8"),
 ]);
