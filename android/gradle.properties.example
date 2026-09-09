@@ -1,0 +1,5 @@
+# Copie este arquivo para gradle.properties apenas no seu computador.
+# As quatro variáveis EZDECK_RELEASE_* de assinatura ficam somente no arquivo local.
+org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+android.useAndroidX=true
+android.nonTransitiveRClass=true

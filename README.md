@@ -4,9 +4,15 @@ Painel local de atalhos para usar um computador Windows a partir de Android, tab
 
 ## Estado atual
 
-O EzDeck está em preview de desenvolvimento, com janela nativa do Windows, ícone na bandeja e cadastro de aplicativos e atalhos de teclado. Ainda requer Node.js instalado; o instalador `.exe` com runtime embutido é uma próxima etapa. O companion Android/PWA usa PIN, WebSocket e descoberta automática pela rede local.
+O EzDeck está em preview, com janela nativa do Windows, ícone na bandeja e cadastro de aplicativos e atalhos de teclado. O instalador `EzDeck-Setup.exe` já inclui o runtime necessário: quem instala não precisa instalar Node.js. O companion Android/PWA usa PIN, WebSocket e descoberta automática pela rede local.
 
-## Testar no Windows
+## Instalar no Windows
+
+Baixe `EzDeck-Setup.exe` na página de Releases, execute-o e use o atalho criado na Área de Trabalho. O app é instalado em `%LOCALAPPDATA%\EzDeck`, preservando as configurações em `%APPDATA%\EzDeck` durante atualizações.
+
+Enquanto o instalador não tiver certificado de assinatura de código do Windows, o SmartScreen pode pedir confirmação antes da primeira execução. Baixe o arquivo apenas pela Release oficial do EzDeck.
+
+## Desenvolver no Windows
 
 Requer Windows 10/11 e Node.js 20 ou mais recente:
 

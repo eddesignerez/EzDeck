@@ -51,8 +51,10 @@ Stream Deck. O servidor, a PWA e o APK usam o mesmo protocolo do EzDeck; o
 adaptador Windows encontra atalhos do Menu Iniciar e só abre caminhos que ele
 mesmo inventariou.
 
-Ainda não há instalador `.exe` com Node embutido. Para testar pelo
-código-fonte, use Windows 10/11 e Node.js 20 ou superior:
+Para instalar sem Node.js, use `EzDeck-Setup.exe` publicado na Release. O
+instalador leva o runtime necessário, instala em `%LOCALAPPDATA%\EzDeck` e
+cria o atalho na Área de Trabalho. Para desenvolver pelo código-fonte, use
+Windows 10/11 e Node.js 20 ou superior:
 
 ```powershell
 npm ci
@@ -83,5 +85,7 @@ exponha a porta 3100 na internet.
 - ícone real por aplicativo quando o Windows o disponibiliza, com fallback visual da PWA;
 - PIN, WebSocket e descoberta UDP existentes.
 
-Uma versão distribuível ainda precisa do instalador que embute o runtime Node
-e da distribuição assinada do APK.
+O instalador já embute o runtime Node. Para distribuição pública sem alertas do
+SmartScreen, ele ainda precisa ser assinado com um certificado de código do
+Windows. O APK Android também deve ser gerado como Release assinada antes de
+ser publicado.

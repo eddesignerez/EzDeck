@@ -193,7 +193,10 @@ $timer.add_Tick({
   }
 })
 try{
-  $node=(Get-Command node -ErrorAction Stop).Source
+  # O instalador distribui o runtime Node junto do EzDeck. Durante o
+  # desenvolvimento, mantém compatibilidade com o Node já instalado no Windows.
+  $bundledNode=Join-Path $root 'runtime\node.exe'
+  $node=if(Test-Path -LiteralPath $bundledNode){$bundledNode}else{(Get-Command node -ErrorAction Stop).Source}
   $probe=New-Object Net.Sockets.TcpClient;try{$probe.Connect('127.0.0.1',$Port);$busy=$true}catch{$busy=$false}finally{$probe.Dispose()}
   if($busy){throw "A porta $Port ja esta em uso. Encerre o EzDeck antigo no terminal com Ctrl+C."}
   # Start-Process preserva corretamente o ambiente do Node quando o EzDeck é

@@ -13,6 +13,11 @@ android/build/
 android/app/build/
 android/.idea/
 android/local.properties
+android/gradle.properties
+android/app/release/
+dist/
+*.jks
+*.keystore
 mac/.build/
 mac/.swiftpm/
 mac/dist/
