@@ -362,7 +362,7 @@
     width: 14px; height: 6px;
     border-radius: 3px;
   }
-  .add-page{ display:block; margin:0 auto 10px; min-height:32px; padding:0 13px; border:1px solid rgba(255,255,255,.22); border-radius:17px; background:rgba(255,255,255,.10); color:rgba(255,255,255,.92); font:700 12px/1 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  .page-actions{display:flex;justify-content:center;gap:8px;margin:0 auto 10px}.add-page{min-height:32px;padding:0 13px;border:1px solid rgba(255,255,255,.22);border-radius:17px;background:rgba(255,255,255,.10);color:rgba(255,255,255,.92);font:700 12px/1 system-ui,-apple-system,"Segoe UI",sans-serif}
   .add-page[hidden]{ display:none; }
 
   /* ---- vdots (lateral, troca de tela) ---- */
@@ -816,7 +816,7 @@
         <div class="launchpadwrap">
           <div class="launchpad" id="launchpad"><div class="launchpad-track" id="launchpadTrack"></div></div>
           <div class="dots" id="dots"></div>
-          <button class="add-page" id="addPage" type="button">＋ Adicionar página</button>
+          <div class="page-actions"><button class="add-page" id="removePage" type="button" hidden>− Página</button><button class="add-page" id="addPage" type="button">＋ Adicionar página</button></div>
         </div>
       </div>
     </section>
@@ -1744,6 +1744,7 @@
     const page = Math.min(prev, pages.length - 1);
     renderDots();
     $("addPage").hidden = pageCount >= state.maxPinnedPages;
+    $("removePage").hidden = pageCount <= 1;
     launchpad.scrollLeft = page * launchpad.clientWidth;
     if (launchpadTrack){
       launchpadTrack.style.transition = "";
@@ -2121,6 +2122,15 @@
     applyAppsPayload(cfg.pieces, cfg.pinned, state.running, cfg.limits, cfg.revision, cfg.pageCount);
     renderLaunchpad(true);
     launchpad.scrollLeft = (cfg.pageCount - 1) * launchpad.clientWidth;
+  });
+
+  $("removePage").addEventListener("click", async function(){
+    const r = await req("/api/config/pages", { method: "DELETE", timeout: 4000 });
+    if (r.status !== 200 || !r.data?.config){ toast(r.data?.error || "Não foi possível remover a página.", "err"); return; }
+    const cfg = r.data.config;
+    applyAppsPayload(cfg.pieces, cfg.pinned, state.running, cfg.limits, cfg.revision, cfg.pageCount);
+    renderLaunchpad(true);
+    launchpad.scrollLeft = Math.max(0, cfg.pageCount - 1) * launchpad.clientWidth;
   });
 
   $("addApps").addEventListener("click", async function(){

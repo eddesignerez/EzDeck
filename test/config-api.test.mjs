@@ -26,8 +26,43 @@ test("GET /api/config vazio retorna pinned vazio", async () => {
     assert.equal(r.status, 200);
     assert.deepEqual(await r.json(), {
       ok: true,
-      config: { schemaVersion: 2, revision: 0, pieces: [], pinned: [], limits: pinnedLimits() },
+      config: { schemaVersion: 2, revision: 0, pieces: [], pinned: [], pageCount: 1, limits: pinnedLimits() },
     });
+  } finally { await s.close(); await rm(s.dir, { recursive: true, force: true }); }
+});
+
+test("DELETE /api/config/pages remove somente a última página vazia", async () => {
+  const s = await startTemp();
+  try {
+    const created = await fetch(`${base(s)}/api/config/pages`, { method: "POST" });
+    assert.equal(created.status, 200);
+    assert.equal((await created.json()).config.pageCount, 2);
+
+    const removed = await fetch(`${base(s)}/api/config/pages`, { method: "DELETE" });
+    assert.equal(removed.status, 200);
+    const body = await removed.json();
+    assert.equal(body.config.pageCount, 1);
+    assert.equal(body.config.revision, 2);
+  } finally { await s.close(); await rm(s.dir, { recursive: true, force: true }); }
+});
+
+test("DELETE /api/config/pages protege a última página e páginas com botões", async () => {
+  const s = await startTemp();
+  try {
+    const minimum = await fetch(`${base(s)}/api/config/pages`, { method: "DELETE" });
+    assert.equal(minimum.status, 400);
+    assert.equal((await minimum.json()).code, "PAGE_MINIMUM");
+
+    await fetch(`${base(s)}/api/config/pages`, { method: "POST" });
+    await fetch(`${base(s)}/api/config/pinned`, {
+      method: "POST",
+      body: JSON.stringify({ app: "Figma", position: 8 }),
+    });
+    const occupied = await fetch(`${base(s)}/api/config/pages`, { method: "DELETE" });
+    assert.equal(occupied.status, 400);
+    const body = await occupied.json();
+    assert.equal(body.code, "PAGE_NOT_EMPTY");
+    assert.equal((await (await fetch(`${base(s)}/api/config`)).json()).config.pageCount, 2);
   } finally { await s.close(); await rm(s.dir, { recursive: true, force: true }); }
 });
 

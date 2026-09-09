@@ -36,6 +36,7 @@ import {
   firstAvailablePiecePosition,
   MAX_PINNED_APPS,
   MAX_PINNED_PIECES,
+  PINNED_PAGE_SIZE,
   MAX_DOCK_SLOTS,
   PINNED_LIMIT_CODE,
   PINNED_LIMIT_MESSAGE,
@@ -579,6 +580,34 @@ export function makeApp(deps = {}) {
         })
         .then(cfg => { ok({ ok: true, config: publicCfg(cfg) }); if (onStatusChange) onStatusChange(); })
         .catch(err => err?.code === PINNED_LIMIT_CODE ? rejectPinnedLimit() : fail(res, err)));
+      return;
+    }
+    // Nunca apaga atalhos automaticamente: a última página só pode ser
+    // removida quando todos os seus oito espaços estiverem vazios.
+    if (url.pathname === "/api/config/pages" && req.method === "DELETE") {
+      withConfigLock(() => Promise.resolve()
+        .then(() => readConfig())
+        .then(cfg => {
+          if (cfg.pageCount <= 1) {
+            const err = new Error("Mantenha ao menos uma página no painel."); err.code = "PAGE_MINIMUM"; throw err;
+          }
+          const firstLastPageSlot = (cfg.pageCount - 1) * PINNED_PAGE_SIZE;
+          if (cfg.pieces.some(piece => Number(piece.position) >= firstLastPageSlot)) {
+            const err = new Error("Remova os botões desta página antes de excluí-la."); err.code = "PAGE_NOT_EMPTY"; throw err;
+          }
+          cfg.pageCount -= 1;
+          cfg.revision += 1;
+          return persistConfig(cfg);
+        })
+        .then(cfg => { ok({ ok: true, config: publicCfg(cfg) }); if (onStatusChange) onStatusChange(); })
+        .catch(err => {
+          if (err?.code === "PAGE_MINIMUM" || err?.code === "PAGE_NOT_EMPTY") {
+            res.writeHead(400, JSON_HEADERS);
+            res.end(JSON.stringify({ ok: false, code: err.code, error: err.message }));
+            return;
+          }
+          fail(res, err);
+        }));
       return;
     }
     // POST = adiciona um; PUT = substitui a lista inteira (app Mac / bulk)
