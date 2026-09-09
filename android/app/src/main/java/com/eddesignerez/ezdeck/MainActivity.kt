@@ -204,7 +204,8 @@ class MainActivity : ComponentActivity() {
                 result?.confirm(); return true
             }
         }
-        web.clearCache(true)
+        // Mantém os arquivos estáticos em cache entre aberturas. As mudanças
+        // de ícones chegam pelo WebSocket e invalidam só o que mudou.
         web.addJavascriptInterface(object {
             @android.webkit.JavascriptInterface
             fun hideKeyboard() {
@@ -515,14 +516,14 @@ class MainActivity : ComponentActivity() {
 
     private fun signaturesMatch(installed: PackageInfo, archive: PackageInfo): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val installedSigs = installed.signingInfo.apkContentsSigners.map { it.toCharsString() }.toSet()
-            val archiveSigs = archive.signingInfo.apkContentsSigners.map { it.toCharsString() }.toSet()
+            val installedSigs = installed.signingInfo?.apkContentsSigners.orEmpty().map { it.toCharsString() }.toSet()
+            val archiveSigs = archive.signingInfo?.apkContentsSigners.orEmpty().map { it.toCharsString() }.toSet()
             return installedSigs.isNotEmpty() && installedSigs == archiveSigs
         }
         @Suppress("DEPRECATION")
-        val installedSigs = installed.signatures.map { it.toCharsString() }.toSet()
+        val installedSigs = installed.signatures.orEmpty().map { it.toCharsString() }.toSet()
         @Suppress("DEPRECATION")
-        val archiveSigs = archive.signatures.map { it.toCharsString() }.toSet()
+        val archiveSigs = archive.signatures.orEmpty().map { it.toCharsString() }.toSet()
         return installedSigs.isNotEmpty() && installedSigs == archiveSigs
     }
 

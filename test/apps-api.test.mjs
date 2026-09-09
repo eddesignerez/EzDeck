@@ -38,7 +38,7 @@ test("GET /api/apps com defaults reais retorna arrays", async () => {
 });
 
 test("GET /api/apps/installed retorna { ok, apps } da lista instalada", async () => {
-  const installed = [{ name: "Chrome", path: "/Applications/Google Chrome.app", icon: true }];
+  const installed = [{ name: "Chrome", path: "C:/Program Files/Google/Chrome/Application/chrome.exe", icon: true }];
   const { port, close } = await startServer({
     port: 0,
     config: {},
@@ -64,7 +64,7 @@ test("GET /api/apps/Chrome/icon retorna 200 image/png com bytes", async () => {
     const r = await fetch(`http://127.0.0.1:${port}/api/apps/Chrome/icon`);
     assert.equal(r.status, 200);
     assert.equal(r.headers.get("content-type"), "image/png");
-    assert.match(r.headers.get("cache-control") || "", /max-age=86400/, "ícone com cache HTTP");
+    assert.match(r.headers.get("cache-control") || "", /no-store/, "sobreposições personalizadas não podem reutilizar imagem HTTP antiga; extração fica no cache do host");
     assert.deepEqual([...Buffer.from(await r.arrayBuffer())], [...bytes]);
   } finally { await close(); }
 });

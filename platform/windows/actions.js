@@ -1,7 +1,7 @@
 import { runPowerShell } from "./apps.js";
 
 const OPEN_SCRIPT = "if ($args[0] -like 'shell:AppsFolder\\*') { Start-Process -FilePath explorer.exe -ArgumentList $args[0] } else { Start-Process -FilePath $args[0] }";
-const FOCUS_SCRIPT = "Add-Type @'\nusing System;\nusing System.Runtime.InteropServices;\npublic static class EzDeckWindow { [DllImport(\"user32.dll\")] public static extern bool SetForegroundWindow(IntPtr hWnd); }\n'@; $process = Get-Process -Id ([int]$args[0]) -ErrorAction Stop; if ($process.MainWindowHandle -eq 0) { exit 1 }; if (-not [EzDeckWindow]::SetForegroundWindow($process.MainWindowHandle)) { exit 1 }";
+const FOCUS_SCRIPT = "if (-not ('EzDeckWindow' -as [type])) { Add-Type @'\nusing System;\nusing System.Runtime.InteropServices;\npublic static class EzDeckWindow { [DllImport(\"user32.dll\")] public static extern bool SetForegroundWindow(IntPtr hWnd); [DllImport(\"user32.dll\")] public static extern bool ShowWindowAsync(IntPtr hWnd, int mode); [DllImport(\"user32.dll\")] public static extern bool IsIconic(IntPtr hWnd); }\n'@\n}; $process = Get-Process -Id ([int]$args[0]) -ErrorAction Stop; if ($process.MainWindowHandle -eq 0) { throw 'Janela indisponível' }; if ([EzDeckWindow]::IsIconic($process.MainWindowHandle)) { [EzDeckWindow]::ShowWindowAsync($process.MainWindowHandle,9) | Out-Null }; if (-not [EzDeckWindow]::SetForegroundWindow($process.MainWindowHandle)) { throw 'Não foi possível focar a janela' }";
 
 function normalize(value) {
   return String(value || "").trim().toLocaleLowerCase("pt-BR");

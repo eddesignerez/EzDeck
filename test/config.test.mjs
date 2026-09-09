@@ -12,7 +12,7 @@ import {
   MAX_PINNED_APPS,
 } from "../config.js";
 
-const emptyConfig = { schemaVersion: 2, revision: 0, pieces: [], pinned: [] };
+const emptyConfig = { schemaVersion: 2, revision: 0, pieces: [], pinned: [], pageCount: 1 };
 
 test("limite do dock cabe em cinco páginas completas", () => {
   assert.equal(PINNED_PAGE_SIZE, 8);

@@ -55,7 +55,7 @@ export async function ensurePin(root = import.meta.dirname) {
   return pin;
 }
 
-/** Loopback (127.0.0.1 / ::1 / IPv4-mapped) = dono do Mac, confiável. */
+/** Loopback (127.0.0.1 / ::1 / IPv4-mapped) = dono do host, confiável. */
 export function isLoopback(addr) {
   if (!addr) return false;
   return addr === "127.0.0.1" || addr === "::1" || addr === "::ffff:127.0.0.1";

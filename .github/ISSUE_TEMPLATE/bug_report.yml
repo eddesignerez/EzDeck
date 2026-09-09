@@ -1,5 +1,5 @@
 name: Bug report
-description: Relate um problema reproduzível no Dokke.
+description: Relate um problema reproduzível no EzDeck.
 title: "[Bug] "
 labels:
   - bug
@@ -12,8 +12,8 @@ body:
     id: version
     attributes:
       label: Versão
-      description: Informe a versão do Dokke e o dispositivo afetado.
-      placeholder: v0.2.7 — macOS 14 / Android 12
+      description: Informe a versão do EzDeck e o dispositivo afetado.
+      placeholder: v0.2.8 — Windows 11 / Android 12
     validations:
       required: true
   - type: textarea

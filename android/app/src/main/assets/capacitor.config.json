@@ -1,0 +1,6 @@
+{
+	"appId": "com.eddesignerez.ezdeck",
+	"appName": "EzDeck",
+	"webDir": "public",
+	"bundledWebRuntime": false
+}

@@ -9,9 +9,7 @@
   },
   "scripts": {
     "start": "node server.js",
-    "test": "node --test",
-    "mac:install": "cd mac && ./install.sh",
-    "mac:open": "cd mac && ./install.sh --open"
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20"
@@ -23,9 +21,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.1",
-    "playwright": "^1.62.1"
-  },
-  "optionalDependencies": {
-    "ds-store": "^0.1.6"
+    "playwright": "^1.62.1",
+    "typescript": "^7.0.2"
   }
 }

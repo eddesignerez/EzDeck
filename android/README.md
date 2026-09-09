@@ -11,7 +11,12 @@ cd android
 ./gradlew assembleDebug
 ```
 
-O aplicativo resultante usa o identificador `com.eddesignerez.ezdeck`, portanto será instalado separadamente de qualquer versão do Dokke.
+O aplicativo resultante usa o identificador `com.eddesignerez.ezdeck`.
+
+No Windows, abra esta pasta `android` no Android Studio. Para gerar um APK de
+teste, execute `gradlew.bat assembleDebug` nesta pasta. O arquivo será criado
+em `app/build/outputs/apk/debug/app-debug.apk`. Um simples “Build successful”
+da sincronização não significa que o APK já tenha sido gerado.
 
 ## Assinatura de release
 

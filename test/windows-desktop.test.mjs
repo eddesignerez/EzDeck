@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { chromium } from "playwright";
 import { createCustomActions } from "../platform/windows/custom-actions.js";
 import { parseShortcut, sendShortcut } from "../platform/windows/shortcuts.js";
-import { runPowerShell, createWindowsIconService } from "../platform/windows/apps.js";
+import { createWindowsApps, runPowerShell, createWindowsIconService } from "../platform/windows/apps.js";
 import { startServer } from "../server.js";
 
 test("keyboard actions validate combinations and never interpret shell text", async () => {
@@ -35,6 +35,40 @@ test("large app pickers bound icon processes and share duplicate requests", asyn
   await Promise.all([...apps,...apps].map(app=>service.getIconPng(app.name)));
   assert.equal(calls,20);
   assert.ok(peak<=3);
+});
+
+test("Windows icon cache survives a full EzDeck restart", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "ezdeck-persistent-icons-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const cacheDir = join(directory, "icons");
+  const apps = [{ name: "Calculadora", path: join(directory, "calc.exe") }];
+  await writeFile(apps[0].path, "fixture");
+  let conversions = 0;
+  const first = createWindowsIconService({ listInstalledApps: async () => apps, cacheDir, convertIcon: async (_path, output) => {
+    conversions++;
+    await writeFile(output, Buffer.from([137, 80, 78, 71]));
+  }});
+  assert.deepEqual([...await first.getIconPng("Calculadora")], [137, 80, 78, 71]);
+  const second = createWindowsIconService({ listInstalledApps: async () => apps, cacheDir, convertIcon: async () => {
+    throw new Error("não deve extrair novamente");
+  }});
+  assert.deepEqual([...await second.getIconPng("Calculadora")], [137, 80, 78, 71]);
+  assert.equal(conversions, 1);
+});
+
+test("Windows app inventory opens from disk and refreshes in background", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "ezdeck-persistent-apps-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const cacheFile = join(directory, "installed-apps.json");
+  const first = createWindowsApps({ cacheFile, scan: async () => [{ name: "Antigo", path: "old.exe" }] });
+  assert.equal((await first.listInstalledApps())[0].name, "Antigo");
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const second = createWindowsApps({ cacheFile, scan: async () => { await gate; return [{ name: "Atual", path: "new.exe" }]; } });
+  assert.equal((await second.listInstalledApps())[0].name, "Antigo", "cache persistente deve aparecer sem aguardar o scan");
+  release();
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.equal((await second.listInstalledApps())[0].name, "Atual");
 });
 
 test("PowerShell arguments preserve spaces, accents and code-like text as data", { skip: process.platform !== "win32" }, async () => {
@@ -84,12 +118,26 @@ test("custom keyboard icon is persisted and returned for the app tile", async (t
   assert.equal((await actions.inventory())[0].customIcon, true);
 });
 
+test("custom items can be deleted and an app icon overlay can be cleared", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "ezdeck-remove-action-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const actions = createCustomActions({ file: join(directory, "actions.json") });
+  const shortcut = await actions.save({ type: "shortcut", title: "Captura", combo: "Win+Shift+S" });
+  await actions.setIcon(shortcut.name, "data:image/png;base64,iVBORw0KGgo=");
+  assert.equal((await actions.remove(shortcut.name)).removed, true);
+  assert.deepEqual(await actions.inventory(), []);
+  await actions.setIcon("WhatsApp", "data:image/png;base64,iVBORw0KGgo=");
+  assert.ok(await actions.getIcon("whatsapp"));
+  assert.equal((await actions.remove("WHATSAPP")).type, "icon");
+  assert.equal(await actions.getIcon("WhatsApp"), null);
+});
+
 async function fixture(t, installedApps = [{name:"Calculadora",icon:false}]) {
   const directory = await mkdtemp(join(tmpdir(), "ezdeck-ui-test-"));
   const custom = createCustomActions({file:join(directory,"actions.json"),run:async()=>{}});
-  let shutdown=false;
+  let shutdown=false,autostart=false;
   const platform = { appTools: {listInstalledApps: async()=>installedApps,listAppProcesses:async()=>[]},actions:{activateApp:async()=>{},openWebsite:async()=>{}},iconService:{getIconPng:async()=>null} };
-  const server = await startServer({port:0, dataDir:directory, config:{pinned:[]}, obs:null, platform, windowsHost:{token:"test-only-host-key-abcdefghijklmnopqrstuvwxyz",actions:custom,shutdown:()=>{shutdown=true;}}});
+  const server = await startServer({port:0, dataDir:directory, config:{pinned:[]}, obs:null, platform, windowsHost:{token:"test-only-host-key-abcdefghijklmnopqrstuvwxyz",actions:custom,startup:{enabled:async()=>autostart,set:async value=>(autostart=value)},shutdown:()=>{shutdown=true;},getPin:()=>"1929",getPort:()=>3100}});
   t.after(async()=>{await server.close(); await rm(directory,{recursive:true,force:true});});
   return {base:`http://127.0.0.1:${server.port}`, custom, shutdown:()=>shutdown};
 }
@@ -160,6 +208,27 @@ test("Windows control center uses the visual card deck and local host controls",
   const errors=[];page.on("pageerror",error=>errors.push(error.message));
   await page.goto(`${base}/windows.html?token=test-only-host-key-abcdefghijklmnopqrstuvwxyz`);
   await page.waitForSelector(".library-card");
+  await page.locator('#theme-toggle').click();
+  assert.equal(await page.locator('html').getAttribute('data-theme'),'dark','modo escuro deve ser aplicado no painel Windows');
+  await page.reload();
+  assert.equal(await page.locator('html').getAttribute('data-theme'),'dark','preferência de tema deve sobreviver à recarga');
+  await page.locator('#start-with-windows').check();
+  await page.waitForFunction(()=>!document.querySelector('#start-with-windows').disabled);
+  await page.reload();
+  await page.waitForFunction(()=>document.querySelector('#start-with-windows').checked);
+  await page.locator('#start-with-windows').uncheck();
+  await page.waitForFunction(()=>!document.querySelector('#start-with-windows').disabled);
+  let pinWrites=0;
+  page.on("request",request=>{if(request.method()==="POST"&&request.url().endsWith("/api/pin"))pinWrites++;});
+  await page.locator("#pin").click();
+  await page.locator("#new-pin").fill("4815");
+  await page.locator("dialog #cancel").click();
+  assert.equal(await page.locator("#pin").textContent(),"PIN 1929","cancelar preserva o PIN atual");
+  assert.equal(pinWrites,0,"cancelar não envia alteração de PIN");
+  await page.locator("#port").click();
+  assert.match(await page.locator("dialog[open]").textContent(),/alterada ao reiniciar o EzDeck/i);
+  assert.equal(await page.locator("dialog[open] #ok").textContent(),"Reiniciar");
+  await page.locator("dialog[open] #cancel").click();
   assert.equal(await page.locator(".library-card").count(),1);
   assert.equal(await page.locator(".slot").count(),8, "prévia espelha uma página Android de 8 botões");
   assert.equal(await page.locator(".tile").count(),0);
@@ -181,7 +250,8 @@ test("card drop swaps exact positions instead of reordering by list index", {tim
   await page.goto(`${base}/windows.html?token=test-only-host-key-abcdefghijklmnopqrstuvwxyz`);
   await page.locator('.library-card',{hasText:'Calculadora'}).dragTo(page.locator('.slot').first());
   await fetch(`${base}/api/config/pinned`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({app:'Bloco de notas'})});
-  await page.reload();
+  // Alterações feitas no navegador/telefone devem chegar à janela nativa sem
+  // minimizar, reabrir ou atualizar manualmente.
   await page.waitForFunction(()=>document.querySelectorAll('.tile').length===2);
   await page.locator('.tile',{hasText:'Calculadora'}).dragTo(page.locator('.slot').nth(1));
   await page.waitForFunction(()=>[...document.querySelectorAll('.slot')].findIndex(s=>s.textContent.includes('Calculadora'))===1);

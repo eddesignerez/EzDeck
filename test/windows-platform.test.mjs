@@ -22,11 +22,23 @@ test("inventário inclui aplicativos instalados pela Microsoft Store", async () 
     directories: ["menu"],
     findShortcuts: async () => ["menu/Chrome.lnk"],
     runPowerShell: async () => ({ stdout: JSON.stringify([{ path: "menu/Chrome.lnk", targetPath: "C:/chrome.exe" }]) }),
-    listStoreApps: async () => [{ name: "Calculadora", appId: "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App" }],
+    listStoreApps: async () => [{ name: "Calculadora", appId: "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App", iconPath: "C:/Packages/Calculator/Assets/Logo.png" }],
   });
   assert.deepEqual(apps.map(app => app.name), ["Calculadora", "Chrome"]);
   assert.equal(apps[0].path, "shell:AppsFolder\\Microsoft.WindowsCalculator_8wekyb3d8bbwe!App");
   assert.equal(apps[0].store, true);
+  assert.equal(apps[0].icon, true, "apps da Store devem tentar extrair o ícone do shell");
+  assert.equal(apps[0].iconSource, "C:/Packages/Calculator/Assets/Logo.png");
+});
+
+test("inventário encontra apps da Microsoft Store mesmo sem atalhos tradicionais", async () => {
+  const apps = await scanWindowsApps({
+    directories: ["menu-vazio"],
+    findShortcuts: async () => [],
+    listStoreApps: async () => [{ name: "Relógio", appId: "Microsoft.WindowsAlarms_8wekyb3d8bbwe!App" }],
+  });
+  assert.deepEqual(apps.map(app => app.name), ["Relógio"]);
+  assert.equal(apps[0].icon, true);
 });
 
 test("ações Windows só abrem caminho que veio do inventário e foco cai para abertura", async () => {

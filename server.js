@@ -36,6 +36,7 @@ import {
   firstAvailablePiecePosition,
   MAX_PINNED_APPS,
   MAX_PINNED_PIECES,
+  PINNED_PAGE_SIZE,
   MAX_DOCK_SLOTS,
   PINNED_LIMIT_CODE,
   PINNED_LIMIT_MESSAGE,
@@ -135,14 +136,14 @@ function fail(res, err, extra = {}) {
   res.end(JSON.stringify({ ok: false, error: "erro interno", ...extra }));
 }
 
-function readBody(req, res) {
+function readBody(req, res, maxBytes = BODY_MAX_BYTES) {
   return new Promise(resolve => {
     let body = "";
     let big = false;
     req.on("data", c => {
       if (big) return;
       body += c;
-      if (Buffer.byteLength(body, "utf8") > BODY_MAX_BYTES) {
+      if (Buffer.byteLength(body, "utf8") > maxBytes) {
         big = true;
         res.writeHead(413, JSON_HEADERS);
         res.end(JSON.stringify({ ok: false, error: "corpo grande demais" }));
@@ -155,14 +156,14 @@ function readBody(req, res) {
   });
 }
 
-// Estado dos apps precisa parecer instantâneo na tela 2. O lsappinfo tem cache
-// próprio de 1,5 s em apps.js, então este intervalo não cria um fork por frame.
+// Estado dos apps precisa parecer instantâneo na tela 2. O adaptador Windows
+// mantém seu próprio cache, então este intervalo não cria um processo por frame.
 const STATUS_POLL_MS = 1500;
 
 /**
  * Descoberta automática de servidor (UDP broadcast) — o APK Android manda
  * "ezdeck:discover" em 255.255.255.255 e o servidor responde com seu IP:porta.
- * Assim o device acha o Mac mesmo quando o DHCP troca o IP (queda de luz,
+ * Assim o device acha o host mesmo quando o DHCP troca o IP (queda de luz,
  * reinício de roteador). Zero deps — dgram é builtin do Node.
  */
 const DISCOVERY_PORT = 3001;
@@ -252,7 +253,7 @@ function createStatusFeed({ readConfig, listProcesses, version = null }) {
     if (ws.readyState === 1) { try { ws.send(JSON.stringify(data)); } catch (e) {} }
   }
   async function broadcast(force) {
-    // force=true sempre monta payload (pin do Mac precisa empurrar mesmo com 0 clients? não — sem clients não há o que empurrar;
+    // force=true sempre monta payload (pin do host precisa empurrar mesmo com 0 clients? não — sem clients não há o que empurrar;
     // mas last deve invalidar pra próximo client pegar fresco)
     if (!clients.size && !force) return;
     let cfg = normalizeConfig({});
@@ -293,7 +294,7 @@ function createStatusFeed({ readConfig, listProcesses, version = null }) {
         if (timer.unref) timer.unref();
       }
     },
-    /** Empurra já (ex.: pin/unpin do Mac → device em <1s, sem esperar poll de 6s). */
+    /** Empurra já (ex.: pin/unpin no host → device em <1s, sem esperar poll de 6s). */
     ping() { return broadcast(true); },
     inventoryChanged() {
       for (const ws of clients) sendTo(ws, { type: "installed" });
@@ -422,25 +423,53 @@ export function makeApp(deps = {}) {
         respondError(403, { error: "Controle disponível somente na janela do Windows" });
         return;
       }
-      if (url.pathname === "/api/windows/actions" && req.method === "GET") {
+      if (url.pathname === '/api/windows/startup' && req.method === 'GET') {
+        Promise.resolve(host.startup?.enabled() ?? false).then(enabled=>ok({ok:true,enabled})).catch(error=>fail(res,error));
+      } else if(url.pathname === '/api/windows/startup' && req.method === 'POST') {
+        readBody(req,res).then(async body=>{
+          if(body===BODY_TOO_BIG)return;
+          if(body===BODY_INVALID){respondError(400,{error:'Opção inválida'});return}
+          if(!host.startup||typeof body?.enabled!=='boolean'){respondError(400,{error:'Opção inválida'});return}
+          ok({ok:true,enabled:await host.startup.set(body.enabled)});
+        }).catch(error=>fail(res,error));
+      } else if (url.pathname === "/api/windows/actions" && req.method === "GET") {
         host.actions.list().then(items => ok({ ok: true, actions: items })).catch(error => fail(res, error));
       } else if (url.pathname === "/api/windows/status" && req.method === "GET") {
-        ok({ ok: true, pin: host.getPin?.() || null, address: host.address || null });
+        // O endereço pode ser resolvido depois de o host iniciar. Isso evita
+        // atrasar a primeira abertura apenas para consultar a rede do Windows.
+        const address = typeof host.address === "function" ? host.address() : host.address;
+        ok({ ok: true, pin: host.getPin?.() || null, port: host.getPort?.() || null, address: address || null });
       } else if (url.pathname === "/api/windows/actions" && req.method === "POST") {
         readBody(req, res).then(body => {
           if (body === BODY_TOO_BIG) return;
           if (body === BODY_INVALID) { respondError(400, { error: "Cadastro inválido" }); return; }
-          return host.actions.save(body).then(action => ok({ ok: true, action })).catch(error => respondError(400, { error: error.message }));
+          return host.actions.save(body).then(action => {
+            ok({ ok: true, action });
+            if (onInventoryChange) onInventoryChange();
+          }).catch(error => respondError(400, { error: error.message }));
         });
+      } else if (url.pathname.startsWith("/api/windows/actions/") && req.method === "DELETE") {
+        let name;
+        try { name = decodeURIComponent(url.pathname.slice("/api/windows/actions/".length)); }
+        catch { respondError(400, { error: "Nome inválido" }); return; }
+        host.actions.remove(name)
+          .then(result => {
+            if (!result.removed) return respondError(404, { error: "Item personalizado não encontrado" });
+            ok({ ok: true, ...result });
+            if (onInventoryChange) onInventoryChange();
+          })
+          .catch(error => fail(res, error));
       } else if (url.pathname === "/api/windows/refresh-apps" && req.method === "POST") {
         Promise.resolve()
           .then(() => host.refreshApps?.())
           .then(() => { ok({ ok: true }); if (onInventoryChange) onInventoryChange(); })
           .catch(error => fail(res, error));
       } else if (url.pathname === "/api/windows/actions/icon" && req.method === "POST") {
-        readBody(req, res).then(body => {
+        readBody(req, res, 2 * 1024 * 1024).then(body => {
           if (body === BODY_TOO_BIG || body === BODY_INVALID) { respondError(400, { error: "Ícone inválido" }); return; }
-          host.actions.setIcon(body?.name, body?.dataUrl).then(action => ok({ ok: true, action })).catch(error => respondError(400, { error: error.message }));
+          host.actions.setIcon(body?.name, body?.dataUrl)
+            .then(action => { ok({ ok: true, action }); if (onInventoryChange) onInventoryChange(); })
+            .catch(error => respondError(400, { error: error.message }));
         });
       } else if (url.pathname === "/api/windows/shutdown" && req.method === "POST") {
         ok({ ok: true });
@@ -502,16 +531,19 @@ export function makeApp(deps = {}) {
         return;
       }
       if (req.method === "POST") {
-        Promise.resolve()
-          .then(async () => { const p = newPin(); await auth.setPin(p); return p; })
-          .then(p => ok({ ok: true, pin: p }))
-          .catch(err => fail(res, err));
+        readBody(req, res).then(body => {
+          if (body === BODY_TOO_BIG || body === BODY_INVALID) { respondError(400, { error: "PIN inválido" }); return; }
+          const requested = typeof body?.pin === "string" ? body.pin.trim() : "";
+          const p = requested || newPin();
+          if (!/^\d{4}$/.test(p)) { respondError(400, { error: "O PIN deve ter 4 números" }); return; }
+          auth.setPin(p).then(() => ok({ ok: true, pin: p })).catch(err => fail(res, err));
+        });
         return;
       }
       ok({ ok: true, pin: auth.getPin() });
       return;
     }
-    // wall: todo /api/* exige cookie válido — loopback do Mac (dono) passa
+    // wall: todo /api/* exige cookie válido — loopback do host (dono) passa
     if (url.pathname.startsWith("/api/") && !authed()) {
       res.writeHead(401, JSON_HEADERS);
       res.end(JSON.stringify({ ok: false, error: "acesso negado" }));
@@ -550,7 +582,35 @@ export function makeApp(deps = {}) {
         .catch(err => err?.code === PINNED_LIMIT_CODE ? rejectPinnedLimit() : fail(res, err)));
       return;
     }
-    // POST = adiciona um; PUT = substitui a lista inteira (app Mac / bulk)
+    // Nunca apaga atalhos automaticamente: a última página só pode ser
+    // removida quando todos os seus oito espaços estiverem vazios.
+    if (url.pathname === "/api/config/pages" && req.method === "DELETE") {
+      withConfigLock(() => Promise.resolve()
+        .then(() => readConfig())
+        .then(cfg => {
+          if (cfg.pageCount <= 1) {
+            const err = new Error("Mantenha ao menos uma página no painel."); err.code = "PAGE_MINIMUM"; throw err;
+          }
+          const firstLastPageSlot = (cfg.pageCount - 1) * PINNED_PAGE_SIZE;
+          if (cfg.pieces.some(piece => Number(piece.position) >= firstLastPageSlot)) {
+            const err = new Error("Remova os botões desta página antes de excluí-la."); err.code = "PAGE_NOT_EMPTY"; throw err;
+          }
+          cfg.pageCount -= 1;
+          cfg.revision += 1;
+          return persistConfig(cfg);
+        })
+        .then(cfg => { ok({ ok: true, config: publicCfg(cfg) }); if (onStatusChange) onStatusChange(); })
+        .catch(err => {
+          if (err?.code === "PAGE_MINIMUM" || err?.code === "PAGE_NOT_EMPTY") {
+            res.writeHead(400, JSON_HEADERS);
+            res.end(JSON.stringify({ ok: false, code: err.code, error: err.message }));
+            return;
+          }
+          fail(res, err);
+        }));
+      return;
+    }
+    // POST = adiciona um; PUT = substitui a lista inteira (host / bulk)
     if (url.pathname === "/api/config/pinned" && (req.method === "POST" || req.method === "PUT")) {
       readBody(req, res).then(body => {
         if (body === BODY_TOO_BIG) return;
@@ -813,7 +873,7 @@ export function makeApp(deps = {}) {
       catch { respondError(400, { error: "ID inválido" }); return; }
       // Consome o corpo para manter o mesmo limite dos demais POSTs. O
       // conteúdo é deliberadamente ignorado: a URL vem somente da peça
-      // persistida no Mac, nunca do cliente remoto.
+      // persistida no host, nunca do cliente remoto.
       readBody(req, res).then(body => {
         if (body === BODY_TOO_BIG) return;
         Promise.resolve()
@@ -838,7 +898,7 @@ export function makeApp(deps = {}) {
       });
       return;
     }
-    // Status p/ app Mac: quantos devices escutam o WS + health
+    // Status do host: quantos devices escutam o WS + health
     if (url.pathname === "/api/status" && req.method === "GET") {
       Promise.resolve()
         .then(() => readConfig())
@@ -884,8 +944,9 @@ export function makeApp(deps = {}) {
           }
           let pid = body?.pid;
           if (!(Number.isInteger(pid) && pid > 0)) pid = undefined;
+          const started = performance.now();
           actions.activateApp({ name, pid })
-            .then(() => ok({ ok: true }))
+            .then(() => ok({ ok: true, elapsedMs: Math.round((performance.now()-started)*10)/10 }))
             .then(() => { if (onStatusChange) onStatusChange(); })
             .catch(err => fail(res, err));
         });
@@ -911,7 +972,9 @@ export function makeApp(deps = {}) {
           }
           res.writeHead(200, {
             "Content-Type": "image/png",
-            "Cache-Control": "public, max-age=86400",
+            // Um ícone personalizado pode ser trocado mantendo o mesmo nome
+            // de ação. Não reutilize a imagem anterior do cache do navegador.
+            "Cache-Control": "no-store, max-age=0",
             ...SEC_HEADERS,
           });
           res.end(buf);
@@ -999,7 +1062,6 @@ export async function startServer(arg = {}) {
   function userDataDir() {
     const home = process.env.HOME || process.env.USERPROFILE || ".";
     if (process.platform === "win32") return join(process.env.APPDATA || home, "EzDeck");
-    if (process.platform === "darwin") return join(home, "Library", "Application Support", "EzDeck");
     return join(process.env.XDG_CONFIG_HOME || join(home, ".config"), "ezdeck");
   }
   let dataDir = opts.dataDir || userDataDir();

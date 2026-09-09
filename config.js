@@ -199,7 +199,7 @@ export async function loadConfig(file) {
 
 export async function saveConfig(file, cfg) {
   const safe = normalizeConfig(cfg);
-  // tmp único por escrita: escritas concorrentes (kiosk + app Mac) não colidem
+  // tmp único por escrita: escritas concorrentes de clientes não colidem
   const tmp = `${file}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
   await writeFile(tmp, JSON.stringify(safe, null, 2));
   await rename(tmp, file);
