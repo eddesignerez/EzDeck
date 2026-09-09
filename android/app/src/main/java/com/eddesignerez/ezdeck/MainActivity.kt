@@ -516,14 +516,14 @@ class MainActivity : ComponentActivity() {
 
     private fun signaturesMatch(installed: PackageInfo, archive: PackageInfo): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val installedSigs = installed.signingInfo.apkContentsSigners.map { it.toCharsString() }.toSet()
-            val archiveSigs = archive.signingInfo.apkContentsSigners.map { it.toCharsString() }.toSet()
+            val installedSigs = installed.signingInfo?.apkContentsSigners.orEmpty().map { it.toCharsString() }.toSet()
+            val archiveSigs = archive.signingInfo?.apkContentsSigners.orEmpty().map { it.toCharsString() }.toSet()
             return installedSigs.isNotEmpty() && installedSigs == archiveSigs
         }
         @Suppress("DEPRECATION")
-        val installedSigs = installed.signatures.map { it.toCharsString() }.toSet()
+        val installedSigs = installed.signatures.orEmpty().map { it.toCharsString() }.toSet()
         @Suppress("DEPRECATION")
-        val archiveSigs = archive.signatures.map { it.toCharsString() }.toSet()
+        val archiveSigs = archive.signatures.orEmpty().map { it.toCharsString() }.toSet()
         return installedSigs.isNotEmpty() && installedSigs == archiveSigs
     }
 

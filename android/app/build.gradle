@@ -29,12 +29,14 @@ if (releaseSigningPartiallyConfigured) {
 
 android {
     namespace = "com.eddesignerez.ezdeck"
-    compileSdk = 34
+    // API 36 mantém a publicação compatível com Android recente, sem elevar
+    // o mínimo: o APK continua instalável desde Android 5.0 (API 21).
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.eddesignerez.ezdeck"
         minSdk = 21
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 11
         versionName = "0.2.8"
     }
