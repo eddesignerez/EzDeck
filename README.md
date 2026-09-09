@@ -37,8 +37,12 @@ Windows (EzDeck host)  ←→  HTTP + WebSocket + UDP  ←→  Android / PWA
 
 O adaptador Windows lê atalhos do Menu Iniciar e programas cadastrados pela janela local. O Android só aciona itens desse inventário; o cadastro de caminhos e teclas exige acesso local e um token exclusivo da janela. O protocolo usa `ezdeck:discover` e o endpoint `/health` identifica o serviço como `EzDeck`.
 
-## Origem e créditos
+## Origem, créditos e macOS
 
-EzDeck começou como uma adaptação independente do projeto [Dokke](https://github.com/felipenalves/Dokke), de Felipe Alves, sob licença MIT. Este repositório privado não é um fork associado no GitHub e não há sincronização automática com o projeto original. A licença MIT e seus créditos originais são preservados em [LICENSE](LICENSE).
+EzDeck é uma adaptação independente para Windows e Android inspirada no projeto [Dokke](https://github.com/felipenalves/Dokke), de Felipe Alves, sob licença MIT. A licença MIT e os créditos originais são preservados em [LICENSE](LICENSE). EzDeck não é afiliado, endossado nem sincronizado automaticamente com o Dokke.
 
-Quando o host Windows estiver pronto para uso público, pretendemos avisar o projeto Dokke e compartilhar a experiência da adaptação.
+Para uma versão para macOS, baixe o projeto original [Dokke](https://github.com/felipenalves/Dokke). Este repositório concentra apenas o host Windows e os clientes Android/PWA.
+
+## Assinatura e releases
+
+Os binários públicos serão gerados no GitHub Actions e a política de release está em [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md). Enquanto um instalador não tiver assinatura de código, o Windows pode apresentar um aviso do SmartScreen: baixe somente pela Release oficial do EzDeck.

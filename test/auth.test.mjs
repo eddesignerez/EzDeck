@@ -103,14 +103,14 @@ test("unit: ensurePin + writePinFile / readPinFile", async () => {
     assert.match(p1, /^\d{4}$/);
     const read = await readPinFile(root);
     assert.equal(read, p1);
-    assert.equal((await stat(pinFilePath(root))).mode & 0o777, 0o600);
+    if (process.platform !== "win32") assert.equal((await stat(pinFilePath(root))).mode & 0o777, 0o600);
     await chmod(pinFilePath(root), 0o644);
     const p2 = await ensurePin(root);
     assert.equal(p2, p1); // não regenera
-    assert.equal((await stat(pinFilePath(root))).mode & 0o777, 0o600);
+    if (process.platform !== "win32") assert.equal((await stat(pinFilePath(root))).mode & 0o777, 0o600);
     await writePinFile("9999", root);
     assert.equal(await readPinFile(root), "9999");
-    assert.equal((await stat(pinFilePath(root))).mode & 0o777, 0o600);
+    if (process.platform !== "win32") assert.equal((await stat(pinFilePath(root))).mode & 0o777, 0o600);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

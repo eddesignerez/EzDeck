@@ -38,7 +38,7 @@ test("GET /api/apps com defaults reais retorna arrays", async () => {
 });
 
 test("GET /api/apps/installed retorna { ok, apps } da lista instalada", async () => {
-  const installed = [{ name: "Chrome", path: "/Applications/Google Chrome.app", icon: true }];
+  const installed = [{ name: "Chrome", path: "C:/Program Files/Google/Chrome/Application/chrome.exe", icon: true }];
   const { port, close } = await startServer({
     port: 0,
     config: {},

@@ -156,14 +156,14 @@ function readBody(req, res, maxBytes = BODY_MAX_BYTES) {
   });
 }
 
-// Estado dos apps precisa parecer instantâneo na tela 2. O lsappinfo tem cache
-// próprio de 1,5 s em apps.js, então este intervalo não cria um fork por frame.
+// Estado dos apps precisa parecer instantâneo na tela 2. O adaptador Windows
+// mantém seu próprio cache, então este intervalo não cria um processo por frame.
 const STATUS_POLL_MS = 1500;
 
 /**
  * Descoberta automática de servidor (UDP broadcast) — o APK Android manda
  * "ezdeck:discover" em 255.255.255.255 e o servidor responde com seu IP:porta.
- * Assim o device acha o Mac mesmo quando o DHCP troca o IP (queda de luz,
+ * Assim o device acha o host mesmo quando o DHCP troca o IP (queda de luz,
  * reinício de roteador). Zero deps — dgram é builtin do Node.
  */
 const DISCOVERY_PORT = 3001;
@@ -253,7 +253,7 @@ function createStatusFeed({ readConfig, listProcesses, version = null }) {
     if (ws.readyState === 1) { try { ws.send(JSON.stringify(data)); } catch (e) {} }
   }
   async function broadcast(force) {
-    // force=true sempre monta payload (pin do Mac precisa empurrar mesmo com 0 clients? não — sem clients não há o que empurrar;
+    // force=true sempre monta payload (pin do host precisa empurrar mesmo com 0 clients? não — sem clients não há o que empurrar;
     // mas last deve invalidar pra próximo client pegar fresco)
     if (!clients.size && !force) return;
     let cfg = normalizeConfig({});
@@ -294,7 +294,7 @@ function createStatusFeed({ readConfig, listProcesses, version = null }) {
         if (timer.unref) timer.unref();
       }
     },
-    /** Empurra já (ex.: pin/unpin do Mac → device em <1s, sem esperar poll de 6s). */
+    /** Empurra já (ex.: pin/unpin no host → device em <1s, sem esperar poll de 6s). */
     ping() { return broadcast(true); },
     inventoryChanged() {
       for (const ws of clients) sendTo(ws, { type: "installed" });
@@ -543,7 +543,7 @@ export function makeApp(deps = {}) {
       ok({ ok: true, pin: auth.getPin() });
       return;
     }
-    // wall: todo /api/* exige cookie válido — loopback do Mac (dono) passa
+    // wall: todo /api/* exige cookie válido — loopback do host (dono) passa
     if (url.pathname.startsWith("/api/") && !authed()) {
       res.writeHead(401, JSON_HEADERS);
       res.end(JSON.stringify({ ok: false, error: "acesso negado" }));
@@ -610,7 +610,7 @@ export function makeApp(deps = {}) {
         }));
       return;
     }
-    // POST = adiciona um; PUT = substitui a lista inteira (app Mac / bulk)
+    // POST = adiciona um; PUT = substitui a lista inteira (host / bulk)
     if (url.pathname === "/api/config/pinned" && (req.method === "POST" || req.method === "PUT")) {
       readBody(req, res).then(body => {
         if (body === BODY_TOO_BIG) return;
@@ -873,7 +873,7 @@ export function makeApp(deps = {}) {
       catch { respondError(400, { error: "ID inválido" }); return; }
       // Consome o corpo para manter o mesmo limite dos demais POSTs. O
       // conteúdo é deliberadamente ignorado: a URL vem somente da peça
-      // persistida no Mac, nunca do cliente remoto.
+      // persistida no host, nunca do cliente remoto.
       readBody(req, res).then(body => {
         if (body === BODY_TOO_BIG) return;
         Promise.resolve()
@@ -898,7 +898,7 @@ export function makeApp(deps = {}) {
       });
       return;
     }
-    // Status p/ app Mac: quantos devices escutam o WS + health
+    // Status do host: quantos devices escutam o WS + health
     if (url.pathname === "/api/status" && req.method === "GET") {
       Promise.resolve()
         .then(() => readConfig())
@@ -1062,7 +1062,6 @@ export async function startServer(arg = {}) {
   function userDataDir() {
     const home = process.env.HOME || process.env.USERPROFILE || ".";
     if (process.platform === "win32") return join(process.env.APPDATA || home, "EzDeck");
-    if (process.platform === "darwin") return join(home, "Library", "Application Support", "EzDeck");
     return join(process.env.XDG_CONFIG_HOME || join(home, ".config"), "ezdeck");
   }
   let dataDir = opts.dataDir || userDataDir();

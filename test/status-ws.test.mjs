@@ -176,7 +176,7 @@ test("WS rejeita Origin cross-origin mesmo em loopback", async () => {
   } finally { await close(); }
 });
 
-test("POST pin empurra pinned novo no WS (Mac → device)", async () => {
+test("POST pin empurra pinned novo no WS (host → device)", async () => {
   const dir = await (await import("node:fs/promises")).mkdtemp(
     (await import("node:path")).join((await import("node:os")).tmpdir(), "j5ws-")
   );

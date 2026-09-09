@@ -53,7 +53,11 @@ mesmo inventariou.
 
 Para instalar sem Node.js, use `EzDeck-Setup.exe` publicado na Release. O
 instalador leva o runtime necessário, instala em `%LOCALAPPDATA%\EzDeck` e
-cria o atalho na Área de Trabalho. Para desenvolver pelo código-fonte, use
+cria o atalho na Área de Trabalho. Ele também registra **EzDeck** em
+**Configurações → Aplicativos → Aplicativos instalados** e no **Painel de
+Controle → Programas e Recursos**. Ao desinstalar, o app, o atalho e a opção
+de iniciar com o Windows são removidos; os seus botões e configurações em
+`%APPDATA%\EzDeck` são preservados para uma futura reinstalação. Para desenvolver pelo código-fonte, use
 Windows 10/11 e Node.js 20 ou superior:
 
 ```powershell
