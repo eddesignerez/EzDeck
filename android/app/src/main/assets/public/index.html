@@ -1800,27 +1800,25 @@
     // launchpad também move essa janela e deixa os extremos dos cards fora
     // dela; a escala deve ficar na página, ao redor do centro da grade.
     if (launchpad.style.transform) launchpad.style.transform = "";
-    // A escala anterior altera os rects. Limpe-a antes de medir para que a
-    // próxima execução seja idempotente e não fique alternando/pulsando.
-    for (const grid of gridEls){
-      grid.style.transform = "";
-    }
-    pageGridScale = 1;
+    // Não limpe a transformação para medir: alguns WebViews Android mostram
+    // um frame sem a escala durante esse vai-e-volta, parecendo uma piscada.
+    // offsetTop/offsetHeight são medidas de layout (sem a transformação GPU),
+    // então também deixam o cálculo idempotente.
     const availableH = launchpad.clientHeight;
     let scale = 1;
     const firstGrid = gridEls[0];
     const firstKids = firstGrid && firstGrid.children.length ? firstGrid.children : null;
     if (firstKids){
       const first = firstKids[0], last = firstKids[firstKids.length - 1];
-      const firstRect = first.getBoundingClientRect();
-      const lastRect = last.getBoundingClientRect();
-      const contentH = lastRect.bottom - firstRect.top;
+      const contentH = (last.offsetTop + last.offsetHeight) - first.offsetTop;
       if (contentH > 0) scale = Math.min(1, availableH / contentH);
     }
     pageGridScale = scale;
-    if (scale < 1){
-      const next = "scale(" + scale.toFixed(3) + ")";
-      for (const grid of gridEls) grid.style.transform = next;
+    const next = scale < 1 ? "scale(" + scale.toFixed(3) + ")" : "";
+    for (const grid of gridEls){
+      // Não escreva o mesmo estilo repetidamente: além de economizar GPU,
+      // evita repintura desnecessária em tablets mais antigos.
+      if (grid.style.transform !== next) grid.style.transform = next;
     }
   }
   function landNeedsSecondary(){
@@ -1854,26 +1852,27 @@
       if (Math.abs(e.gamma) > 30 || !matchMedia("(orientation: landscape)").matches) updateLandDir();
     });
   } catch (err) {}
-  let scaleTimer = null;
-  function watchScale(){
-    clearInterval(scaleTimer);
-    scaleTimer = setInterval(function(){
+  let scaleLayoutRaf = null;
+  function scheduleDockScale(){
+    if (scaleLayoutRaf) return;
+    scaleLayoutRaf = requestAnimationFrame(function(){
+      scaleLayoutRaf = null;
       layoutDockScale();
-    }, 800);
+    });
   }
   try {
-    matchMedia("(orientation: landscape)").addEventListener("change", function(){ layoutDockScale(); updateLandDir(); });
-    window.addEventListener("resize", function(){ layoutDockScale(); updateLandDir(); });
+    matchMedia("(orientation: landscape)").addEventListener("change", function(){ scheduleDockScale(); updateLandDir(); });
+    window.addEventListener("resize", function(){ scheduleDockScale(); updateLandDir(); });
     window.addEventListener("orientationchange", function(){
-      layoutDockScale();
+      scheduleDockScale();
       updateLandDir();
     });
-    document.addEventListener("visibilitychange", function(){ layoutDockScale(); updateLandDir(); syncScreenWakeLock(); });
-    window.addEventListener("pageshow", function(){ layoutDockScale(); updateLandDir(); requestScreenWakeLock(); });
+    document.addEventListener("visibilitychange", function(){ scheduleDockScale(); updateLandDir(); syncScreenWakeLock(); });
+    window.addEventListener("pageshow", function(){ scheduleDockScale(); updateLandDir(); requestScreenWakeLock(); });
     window.addEventListener("pagehide", releaseScreenWakeLock);
   } catch (err) {}
   updateLandDir();
-  watchScale();
+  scheduleDockScale();
 
   // ---------- rendering: tela 2 — dock organizado (abertos | fixados) ----------
   let deckPid = null;
