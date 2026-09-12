@@ -392,7 +392,11 @@ class MainActivity : ComponentActivity() {
             }
         }
         if (firstResume) { firstResume = false; return }
-        if (offlinePanel.visibility == View.VISIBLE) retryConnection() else web.reload()
+        // Voltar ao primeiro plano não deve recarregar a WebView: em alguns
+        // tablets o sistema entrega pequenos resumes e isso causava uma
+        // piscada completa no launcher. A página já mantém conexão, polling
+        // leve e WebSocket; só procura o host novamente se estiver offline.
+        if (offlinePanel.visibility == View.VISIBLE) retryConnection()
     }
 
     private fun registerUpdateReceiver() {
