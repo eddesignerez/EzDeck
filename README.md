@@ -29,6 +29,11 @@ Abra o companion no Android e digite o PIN na primeira conexão. O Android procu
 
 Permita a rede apenas no perfil **Privado** caso o Firewall do Windows peça autorização. Não exponha a porta 3100 para a internet.
 
+## Manual e mapa mental
+
+- [Manual de uso](MANUAL_DE_USO.md): instalação, pareamento, painel, ajustes e solução de conexão.
+- [Mapa mental](MAPA_MENTAL.md): visão geral do host Windows, clientes, rede e segurança.
+
 ## Arquitetura
 
 ```text
