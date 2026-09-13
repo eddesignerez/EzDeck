@@ -784,27 +784,26 @@
   .command-notice{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);z-index:90;pointer-events:none;padding:9px 16px;border-radius:12px;background:#360802;color:white;font:500 13px system-ui;max-width:90vw;text-align:center;opacity:0}
   .command-notice.visible{opacity:1}.command-notice.failed{background:#a52e20}
 
-  /* O tema escuro mantém a identidade do EzDeck: superfícies profundas e o
-     laranja reservado a ações e estado ativo. */
-  html.dark-mode,html.dark-mode body{background:#080301!important;color-scheme:dark}
-  html.dark-mode{--ink:rgba(255,255,255,.94);--ink-2:rgba(255,255,255,.64);--ink-3:rgba(255,255,255,.48);--accent:#ff813b;--green:#38d66b;--amber:#ffb649;--red:#ff6b61;--glass:rgba(255,255,255,.07);--edge:rgba(255,255,255,.12)}
-  html.dark-mode .bg{background:radial-gradient(130% 65% at 50% -10%,rgba(232,111,39,.46),transparent 60%),radial-gradient(90% 55% at 85% 45%,rgba(184,76,20,.28),transparent 55%),linear-gradient(180deg,#241106 0%,#150804 55%,#080301 100%)}
-  html.dark-mode .aglass{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.11);box-shadow:0 12px 30px rgba(0,0,0,.24)}
-  html.dark-mode .aglass::before{background:linear-gradient(155deg,rgba(255,255,255,.12),transparent 54%)}
-  html.dark-mode .atile.empty .aglass{background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.12)}
-  html.dark-mode .website-plate{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.12)}
-  html.dark-mode .add-apps{background:#f36a2d;border-color:#ff9967;box-shadow:0 8px 24px rgba(0,0,0,.34)}
-  html.dark-mode .add-page{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.18)}
-  html.dark-mode .dots .d,html.dark-mode .vdots .d{background:rgba(255,255,255,.3)}html.dark-mode .dots .d.on,html.dark-mode .vdots .d.on{background:#ff813b}
-  html.dark-mode .robscard{background:rgba(255,129,59,.14);border-color:rgba(255,170,118,.32)}
-  html.dark-mode .drawer,html.dark-mode .sheet,html.dark-mode .login-card{background:#21100a;color:var(--ink);border-color:rgba(255,255,255,.14);box-shadow:0 14px 36px rgba(0,0,0,.46)}
-  html.dark-mode .sheet .srow{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1)}
+  /* Modo escuro: neutros azul-marinho, superfícies elevadas e coral só para ação/alerta. */
+  html.dark-mode,html.dark-mode body{background:#07162e!important;color-scheme:dark}
+  html.dark-mode{--ink:#f2f7ff;--ink-2:#b7c8df;--ink-3:#91a9c9;--accent:#ff6b57;--green:#42d48b;--amber:#f5bd58;--red:#ff7a83;--glass:#0d2444;--edge:#294f7c}
+  html.dark-mode .bg{background:radial-gradient(130% 65% at 50% -10%,rgba(33,86,144,.43),transparent 60%),radial-gradient(90% 55% at 85% 45%,rgba(17,60,110,.3),transparent 55%),linear-gradient(180deg,#102b51 0%,#0a1d39 55%,#07162e 100%)}
+  html.dark-mode .aglass{background:#0d2547;border-color:#294f7c;box-shadow:0 12px 30px rgba(0,0,0,.24)}
+  html.dark-mode .aglass::before{background:linear-gradient(155deg,rgba(255,255,255,.09),transparent 54%)}
+  html.dark-mode .atile.empty .aglass{background:#0a1d38;border-color:#294f7c}
+  html.dark-mode .website-plate{background:#102947;border-color:#315b8c}
+  html.dark-mode .add-apps{background:#e95d4c;border-color:#ff9486;box-shadow:0 8px 24px rgba(0,0,0,.34)}
+  html.dark-mode .add-page{background:#102947;color:#f2f7ff;border-color:#3d6595}
+  html.dark-mode .dots .d,html.dark-mode .vdots .d{background:#607da4}html.dark-mode .dots .d.on,html.dark-mode .vdots .d.on{background:#ff6b57}
+  html.dark-mode .robscard{background:#102947;border-color:#315b8c}
+  html.dark-mode .drawer,html.dark-mode .sheet,html.dark-mode .login-card{background:#0d2547;color:var(--ink);border-color:#315b8c;box-shadow:0 14px 36px rgba(0,0,0,.46)}
+  html.dark-mode .sheet .srow{background:#102947;border-color:#294f7c}
   html.dark-mode .login-card .body,html.dark-mode .login-card .lsteps p,html.dark-mode .login-card .lfoot{color:var(--ink-2)}html.dark-mode .login-card .lsteps b,html.dark-mode .login-card h3{color:var(--ink)}
-  html.dark-mode .login-card input,html.dark-mode .login-card .lkey{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.15);color:var(--ink)}
-  html.dark-mode .login-card .btn.connect{background:#f36a2d;border-color:#ff9967;box-shadow:0 8px 24px rgba(0,0,0,.28)}
+  html.dark-mode .login-card input,html.dark-mode .login-card .lkey{background:#081a33;border-color:#315b8c;color:var(--ink)}
+  html.dark-mode .login-card .btn.connect{background:#e95d4c;border-color:#ff9486;box-shadow:0 8px 24px rgba(0,0,0,.28)}
   .theme-toggle{position:fixed;left:18px;bottom:22px;z-index:35;width:42px;height:42px;display:grid;place-items:center;border:1px solid rgba(54,8,2,.18);border-radius:12px;background:#fff;color:#f73b20;box-shadow:0 8px 24px rgba(54,8,2,.1);font-size:18px;cursor:pointer}
-  html.dark-mode .theme-toggle{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.22);box-shadow:0 8px 24px rgba(0,0,0,.3)}
-  .language-menu{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));right:16px;z-index:40;font-size:12px}.language-menu>button{min-height:40px;display:flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid rgba(255,255,255,.2);border-radius:12px;background:rgba(26,10,4,.78);color:var(--ink);box-shadow:0 8px 24px rgba(0,0,0,.22);font:600 12px inherit;cursor:pointer}.language-menu>button:hover,.language-menu>button:focus-visible{border-color:var(--accent);background:rgba(67,25,10,.92)}.language-flag{font-size:18px;line-height:1}.language-caret{font-size:13px;opacity:.7}.language-popover{position:absolute;right:0;top:calc(100% + 8px);min-width:180px;padding:6px;border:1px solid rgba(255,255,255,.16);border-radius:14px;background:rgba(30,12,6,.97);box-shadow:0 18px 48px rgba(0,0,0,.4)}.language-popover[hidden]{display:none}.language-popover button{width:100%;display:flex;align-items:center;gap:9px;padding:9px 10px;border:0;border-radius:9px;background:transparent;color:var(--ink);font:500 12px inherit;text-align:left;cursor:pointer}.language-popover button:hover,.language-popover button:focus-visible{background:rgba(255,255,255,.1)}.language-popover button[aria-checked=true]{background:rgba(10,132,255,.18)}.language-check{margin-left:auto;color:#64d2ff;font-size:14px}
+  html.dark-mode .theme-toggle{background:#102947;color:#f2f7ff;border-color:#3d6595;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+  .language-menu{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));right:16px;z-index:40;font-size:12px}.language-menu>button{min-height:40px;display:flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid rgba(255,255,255,.2);border-radius:12px;background:#102947;color:var(--ink);box-shadow:0 8px 24px rgba(0,0,0,.22);font:600 12px inherit;cursor:pointer}.language-menu>button:hover,.language-menu>button:focus-visible{border-color:var(--accent);background:#173964}.language-flag{font-size:18px;line-height:1}.language-caret{font-size:13px;opacity:.7}.language-popover{position:absolute;right:0;top:calc(100% + 8px);min-width:180px;padding:6px;border:1px solid #315b8c;border-radius:14px;background:#0d2547;box-shadow:0 18px 48px rgba(0,0,0,.4)}.language-popover[hidden]{display:none}.language-popover button{width:100%;display:flex;align-items:center;gap:9px;padding:9px 10px;border:0;border-radius:9px;background:transparent;color:var(--ink);font:500 12px inherit;text-align:left;cursor:pointer}.language-popover button:hover,.language-popover button:focus-visible{background:#173964}.language-popover button[aria-checked=true]{background:rgba(74,139,204,.28)}.language-check{margin-left:auto;color:#9ed0ff;font-size:14px}
 </style>
 </head>
 <body id="ezdeck">
@@ -817,7 +816,7 @@
         <div class="launchpadwrap">
           <div class="launchpad" id="launchpad"><div class="launchpad-track" id="launchpadTrack"></div></div>
           <div class="dots" id="dots"></div>
-          <div class="page-actions"><button class="add-page" id="removePage" type="button" hidden>− Página</button><button class="add-page" id="addPage" type="button">＋ Adicionar página</button></div>
+          <div class="page-actions"><button class="add-page" id="removePage" type="button" data-i18n="page.remove" hidden>− Página</button><button class="add-page" id="addPage" type="button" data-i18n="page.add">＋ Adicionar página</button></div>
         </div>
       </div>
     </section>
@@ -863,7 +862,7 @@
       <span id="upSub"></span>
     </div>
     <div class="up-actions">
-      <button class="up-download" id="upDownload">Baixar</button>
+      <button class="up-download" id="upDownload" data-i18n="update.download">Baixar</button>
       <button class="up-x" id="upX" aria-label="Fechar aviso" data-i18n-aria-label="aria.close">✕</button>
     </div>
   </div>
@@ -876,7 +875,7 @@
     <div class="drawer-body" id="obspanel"></div>
   </aside>
 
-<script src="/i18n-extra.js"></script><script>
+<script src="/i18n-extra.js"></script><script src="/mobile-i18n.js?v=20260914-i18n"></script><script>
 (() => {
   "use strict";
 
@@ -936,7 +935,8 @@
       "update.available": "Nova atualização do EzDeck", "update.version": "Versão {version} disponível. Escolha quando baixar.",
       "update.download": "Baixar", "update.reload": "Recarregar", "update.release": "Abrir release", "update.macTitle": "App do Windows desatualizado",
       "update.macSubtitle": "Nova versão {version} disponível — atualize o EzDeck no computador",
-      "update.close": "Fechar aviso", "site": "site", "footer.brand": "EzDeck"
+      "update.close": "Fechar aviso", "site": "site", "footer.brand": "EzDeck",
+      "page.remove": "− Página", "page.add": "＋ Adicionar página", "command.sending": "Enviando…", "command.unconfirmed": "Comando não confirmado", "command.confirmed": "✓ Comando confirmado · {ms} ms", "command.failed": "Não foi possível confirmar. Verifique a conexão.", "dock.limitHint": "Remova uma peça para adicionar outra.", "dock.installedCount": "{count} apps instalados", "page.removeFailed": "Não foi possível remover a página.", "dock.loading": "Carregando…", "dock.loadAppsFailed": "Não foi possível listar os apps. Confira o EzDeck no Windows.", "theme.light": "Ativar modo claro", "theme.dark": "Ativar modo escuro"
     },
     en: {
       "aria.language": "Language", "aria.selectLanguage": "Select language", "aria.close": "Close",
@@ -979,7 +979,8 @@
       "update.available": "New EzDeck update", "update.version": "Version {version} is available. Choose when to download it.",
       "update.download": "Download", "update.reload": "Reload", "update.release": "Open release", "update.macTitle": "Windows app is out of date",
       "update.macSubtitle": "Version {version} is available — update EzDeck on your computer",
-      "update.close": "Close notice", "site": "site", "footer.brand": "EzDeck"
+      "update.close": "Close notice", "site": "site", "footer.brand": "EzDeck",
+      "page.remove": "− Page", "page.add": "＋ Add page", "command.sending": "Sending…", "command.unconfirmed": "Command was not confirmed", "command.confirmed": "✓ Command confirmed · {ms} ms", "command.failed": "Could not confirm. Check the connection.", "dock.limitHint": "Remove a piece to add another.", "dock.installedCount": "{count} installed apps", "page.removeFailed": "Could not remove the page.", "dock.loading": "Loading…", "dock.loadAppsFailed": "Could not load apps. Check EzDeck on Windows.", "theme.light": "Enable light mode", "theme.dark": "Enable dark mode"
     }
   };
   Object.assign(I18N, window.EZDECK_EXTRA_I18N || {});
@@ -1364,16 +1365,16 @@
     // Send first; the small acknowledgement never blocks or intercepts input.
     const request=post(path,body);
     clearTimeout(commandNoticeTimer);
-    notice.textContent='Enviando…';notice.className='command-notice visible';
+    notice.textContent=t("command.sending");notice.className='command-notice visible';
     try{
       const response=await request;
-      if(response.status!==200||!response.data?.ok)throw new Error('Comando não confirmado');
+      if(response.status!==200||!response.data?.ok)throw new Error(t("command.unconfirmed"));
       const roundTripMs=Math.round(performance.now()-started);
       window.ezdeckLastCommand={roundTripMs,hostMs:response.data.elapsedMs??null};
-      if(id===commandSequence){notice.textContent='✓ Comando confirmado · '+roundTripMs+' ms';commandNoticeTimer=setTimeout(()=>notice.classList.remove('visible'),1400)}
+      if(id===commandSequence){notice.textContent=t("command.confirmed",{ms:roundTripMs});commandNoticeTimer=setTimeout(()=>notice.classList.remove('visible'),1400)}
       return true;
     }catch(error){
-      if(id===commandSequence){notice.textContent='Não foi possível confirmar. Verifique a conexão.';notice.className='command-notice visible failed';commandNoticeTimer=setTimeout(()=>notice.classList.remove('visible'),3500)}
+      if(id===commandSequence){notice.textContent=t("command.failed");notice.className='command-notice visible failed';commandNoticeTimer=setTimeout(()=>notice.classList.remove('visible'),3500)}
       return false;
     }
   }
@@ -2089,8 +2090,8 @@
     const sub = document.createElement("div");
     sub.style.cssText = "margin-bottom:10px;color:var(--ink-3);font-size:12px";
     sub.textContent = state.pieces.length >= state.maxPinnedPieces
-      ? pinnedLimitMessage() + ". " + (currentLanguage === "en" ? "Remove a piece to add another." : "Remova uma peça para adicionar outra.")
-      : state.installed.length + (currentLanguage === "en" ? " installed apps" : " apps instalados");
+      ? pinnedLimitMessage() + ". " + t("dock.limitHint")
+      : t("dock.installedCount", { count: state.installed.length });
     if (state.pieces.length >= state.maxPinnedPieces) sub.style.color = "var(--amber)";
     kids.push(sub);
     state.installed.forEach(function(a){
@@ -2158,7 +2159,7 @@
 
   $("removePage").addEventListener("click", async function(){
     const r = await req("/api/config/pages", { method: "DELETE", timeout: 4000 });
-    if (r.status !== 200 || !r.data?.config){ toast(r.data?.error || "Não foi possível remover a página.", "err"); return; }
+    if (r.status !== 200 || !r.data?.config){ toast(r.data?.error || t("page.removeFailed"), "err"); return; }
     const cfg = r.data.config;
     applyAppsPayload(cfg.pieces, cfg.pinned, state.running, cfg.limits, cfg.revision, cfg.pageCount);
     renderLaunchpad(true);
@@ -2168,7 +2169,7 @@
   $("addApps").addEventListener("click", async function(){
     const button = $("addApps");
     button.disabled = true;
-    button.textContent = currentLanguage === "en" ? "Loading…" : "Carregando…";
+    button.textContent = t("dock.loading");
     try {
       const response = await req("/api/apps/installed", { timeout: 20000 });
       if (response.status !== 200 || !response.data || !Array.isArray(response.data.apps)) throw new Error("inventory");
@@ -2176,7 +2177,7 @@
       state.installedReady = true;
       openPinSheet();
     } catch (error) {
-      toast(currentLanguage === "en" ? "Could not load apps. Check EzDeck on Windows." : "Não foi possível listar os apps. Confira o EzDeck no Windows.", "err");
+      toast(t("dock.loadAppsFailed"), "err");
     } finally {
       button.disabled = false;
       button.textContent = t("dock.addApps");
@@ -3267,7 +3268,7 @@
       document.documentElement.classList.toggle("dark-mode", dark);
       document.querySelector('meta[name="theme-color"]').setAttribute("content", dark ? "#080301" : "#ffffff");
       toggle.textContent = dark ? "☀" : "☾";
-      const label = dark ? "Ativar modo claro" : "Ativar modo escuro";
+      const label = dark ? t("theme.light") : t("theme.dark");
       toggle.setAttribute("aria-label", label);toggle.title = label;
     }
     let saved = null;try{saved=localStorage.getItem(key)}catch(e){}
