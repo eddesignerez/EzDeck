@@ -804,6 +804,7 @@
   html.dark-mode .login-card .btn.connect{background:#f36a2d;border-color:#ff9967;box-shadow:0 8px 24px rgba(0,0,0,.28)}
   .theme-toggle{position:fixed;left:18px;bottom:22px;z-index:35;width:42px;height:42px;display:grid;place-items:center;border:1px solid rgba(54,8,2,.18);border-radius:12px;background:#fff;color:#f73b20;box-shadow:0 8px 24px rgba(54,8,2,.1);font-size:18px;cursor:pointer}
   html.dark-mode .theme-toggle{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.22);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+  .language-menu{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));right:16px;z-index:40;font-size:12px}.language-menu>button{min-height:40px;display:flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid rgba(255,255,255,.2);border-radius:12px;background:rgba(26,10,4,.78);color:var(--ink);box-shadow:0 8px 24px rgba(0,0,0,.22);font:600 12px inherit;cursor:pointer}.language-menu>button:hover,.language-menu>button:focus-visible{border-color:var(--accent);background:rgba(67,25,10,.92)}.language-flag{font-size:18px;line-height:1}.language-caret{font-size:13px;opacity:.7}.language-popover{position:absolute;right:0;top:calc(100% + 8px);min-width:180px;padding:6px;border:1px solid rgba(255,255,255,.16);border-radius:14px;background:rgba(30,12,6,.97);box-shadow:0 18px 48px rgba(0,0,0,.4)}.language-popover[hidden]{display:none}.language-popover button{width:100%;display:flex;align-items:center;gap:9px;padding:9px 10px;border:0;border-radius:9px;background:transparent;color:var(--ink);font:500 12px inherit;text-align:left;cursor:pointer}.language-popover button:hover,.language-popover button:focus-visible{background:rgba(255,255,255,.1)}.language-popover button[aria-checked=true]{background:rgba(10,132,255,.18)}.language-check{margin-left:auto;color:#64d2ff;font-size:14px}
 </style>
 </head>
 <body id="ezdeck">
@@ -825,6 +826,7 @@
 </main>
 <button class="add-apps" id="addApps" type="button" data-i18n="dock.addApps">＋ Adicionar apps</button>
 <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ativar modo escuro" title="Ativar modo escuro">☾</button>
+<div class="language-menu" id="languageMenu"><button id="languageToggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Selecionar idioma"><span class="language-flag" id="languageFlag">🇧🇷</span><span id="languageLabel">Português</span><span class="language-caret">⌄</span></button><div class="language-popover" id="languagePopover" role="menu" aria-label="Selecionar idioma" hidden></div></div>
 
 <div class="vdots" id="vdots"></div>
 
@@ -874,7 +876,7 @@
     <div class="drawer-body" id="obspanel"></div>
   </aside>
 
-<script>
+<script src="/i18n-extra.js"></script><script>
 (() => {
   "use strict";
 
@@ -980,14 +982,28 @@
       "update.close": "Close notice", "site": "site", "footer.brand": "EzDeck"
     }
   };
+  Object.assign(I18N, window.EZDECK_EXTRA_I18N || {});
+  const LANGUAGES = [
+    { value:"pt-BR", label:"Português", flag:"🇧🇷" }, { value:"en", label:"English", flag:"🇺🇸" },
+    { value:"es", label:"Español", flag:"🇪🇸" }, { value:"ja", label:"日本語", flag:"🇯🇵" },
+    { value:"it", label:"Italiano", flag:"🇮🇹" }, { value:"fr", label:"Français", flag:"🇫🇷" },
+    { value:"de", label:"Deutsch", flag:"🇩🇪" }, { value:"zh-CN", label:"简体中文", flag:"🇨🇳" },
+    { value:"vi", label:"Tiếng Việt", flag:"🇻🇳" }
+  ];
   function detectLanguage(language = navigator.language){
     if (typeof language !== "string" || !language.trim()) return "pt-BR";
-    return language.toLowerCase().startsWith("pt") ? "pt-BR" : "en";
+    const code = language.toLowerCase();
+    if (code.startsWith("pt")) return "pt-BR";
+    if (code.startsWith("zh")) return "zh-CN";
+    const found = LANGUAGES.find(item => code === item.value.toLowerCase() || code.startsWith(item.value.toLowerCase() + "-"));
+    return found ? found.value : "en";
   }
   function getInitialLanguage(){
     let browserLanguage = null;
     try { browserLanguage = typeof navigator !== "undefined" ? navigator.language : null; } catch (e) {}
-    return detectLanguage(browserLanguage);
+    let saved = null;
+    try { saved = localStorage.getItem("ezdeck-locale"); } catch (e) {}
+    return saved && LANGUAGES.some(item => item.value === saved) ? saved : detectLanguage(browserLanguage);
   }
   let currentLanguage = getInitialLanguage();
   function t(key, values = {}){
@@ -1007,7 +1023,22 @@
     document.querySelectorAll("[data-i18n-placeholder]").forEach(function(element){
       element.setAttribute("placeholder", t(element.dataset.i18nPlaceholder));
     });
+    const selected = LANGUAGES.find(item => item.value === currentLanguage) || LANGUAGES[0];
+    const flag = document.getElementById("languageFlag"), label = document.getElementById("languageLabel"), popover = document.getElementById("languagePopover"), toggle = document.getElementById("languageToggle");
+    if (flag) flag.textContent = selected.flag;
+    if (label) label.textContent = selected.label;
+    if (toggle) { toggle.setAttribute("aria-label", t("aria.selectLanguage")); toggle.title = t("aria.selectLanguage"); }
+    if (popover) popover.setAttribute("aria-label", t("aria.selectLanguage"));
+    if (popover) popover.querySelectorAll("[data-locale]").forEach(function(item){ item.setAttribute("aria-checked", item.dataset.locale === currentLanguage ? "true" : "false"); const check = item.querySelector(".language-check"); if (check) check.textContent = item.dataset.locale === currentLanguage ? "✓" : ""; });
   }
+  (function setupLanguageMenu(){
+    const root = document.getElementById("languageMenu"), toggle = document.getElementById("languageToggle"), popover = document.getElementById("languagePopover");
+    if (!root || !toggle || !popover) return;
+    LANGUAGES.forEach(function(item){ const option=document.createElement("button"); option.type="button"; option.role="menuitemradio"; option.dataset.locale=item.value; option.innerHTML='<span class="language-flag">'+item.flag+'</span><span>'+item.label+'</span><span class="language-check" aria-hidden="true"></span>'; option.addEventListener("click",function(){ currentLanguage=item.value; try{localStorage.setItem("ezdeck-locale",currentLanguage)}catch(e){} renderLanguage(); popover.hidden=true; toggle.setAttribute("aria-expanded","false"); toggle.focus(); }); popover.append(option); });
+    toggle.addEventListener("click",function(){ popover.hidden=!popover.hidden; toggle.setAttribute("aria-expanded",String(!popover.hidden)); });
+    document.addEventListener("pointerdown",function(event){ if (!root.contains(event.target)){ popover.hidden=true; toggle.setAttribute("aria-expanded","false"); } });
+    document.addEventListener("keydown",function(event){ if(event.key === "Escape" && !popover.hidden){ popover.hidden=true; toggle.setAttribute("aria-expanded","false"); toggle.focus(); } });
+  })();
   renderLanguage();
 
   const PALETTE = [
