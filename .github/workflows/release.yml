@@ -82,6 +82,9 @@ jobs:
           New-Item -ItemType Directory -Force (Split-Path -Parent $keyPath) | Out-Null
           [IO.File]::WriteAllBytes($keyPath, [Convert]::FromBase64String($env:EZDECK_RELEASE_KEYSTORE_BASE64))
           @(
+            "org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8",
+            "android.useAndroidX=true",
+            "android.nonTransitiveRClass=true",
             "EZDECK_RELEASE_STORE_FILE=$keyPath",
             "EZDECK_RELEASE_STORE_PASSWORD=$env:EZDECK_RELEASE_STORE_PASSWORD",
             "EZDECK_RELEASE_KEY_ALIAS=$env:EZDECK_RELEASE_KEY_ALIAS",
