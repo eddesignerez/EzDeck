@@ -445,7 +445,6 @@ export function makeApp(deps = {}) {
           if (body === BODY_INVALID) { respondError(400, { error: "Cadastro inválido" }); return; }
           return host.actions.save(body).then(action => {
             ok({ ok: true, action });
-            if (onInventoryChange) onInventoryChange();
           }).catch(error => respondError(400, { error: error.message }));
         });
       } else if (url.pathname.startsWith("/api/windows/actions/") && req.method === "DELETE") {
@@ -456,19 +455,24 @@ export function makeApp(deps = {}) {
           .then(result => {
             if (!result.removed) return respondError(404, { error: "Item personalizado não encontrado" });
             ok({ ok: true, ...result });
-            if (onInventoryChange) onInventoryChange();
           })
           .catch(error => fail(res, error));
       } else if (url.pathname === "/api/windows/refresh-apps" && req.method === "POST") {
         Promise.resolve()
           .then(() => host.refreshApps?.())
-          .then(() => { ok({ ok: true }); if (onInventoryChange) onInventoryChange(); })
+          .then(() => { ok({ ok: true }); })
           .catch(error => fail(res, error));
+      } else if (url.pathname === "/api/windows/sync" && req.method === "POST") {
+        // Alterações do inventário ficam locais até o usuário confirmar
+        // explicitamente. Assim Android não reconstrói a tela a cada ícone.
+        ok({ ok: true, synced: true });
+        if (onInventoryChange) onInventoryChange();
+        if (onStatusChange) onStatusChange();
       } else if (url.pathname === "/api/windows/actions/icon" && req.method === "POST") {
         readBody(req, res, 2 * 1024 * 1024).then(body => {
           if (body === BODY_TOO_BIG || body === BODY_INVALID) { respondError(400, { error: "Ícone inválido" }); return; }
           host.actions.setIcon(body?.name, body?.dataUrl)
-            .then(action => { ok({ ok: true, action }); if (onInventoryChange) onInventoryChange(); })
+            .then(action => { ok({ ok: true, action }); })
             .catch(error => respondError(400, { error: error.message }));
         });
       } else if (url.pathname === "/api/windows/shutdown" && req.method === "POST") {

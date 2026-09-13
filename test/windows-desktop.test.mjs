@@ -172,6 +172,8 @@ test("Windows refresh endpoint refreshes the local inventory and is host-only", 
   assert.equal((await fetch(`${base}/api/windows/refresh-apps`,{method:"POST",body:"{}"})).status,403);
   assert.equal((await fetch(`${base}/api/windows/refresh-apps`,{method:"POST",headers:{"x-ezdeck-host":"refresh-host-token-abcdefghijklmnopqrstuvwxyz"},body:"{}"})).status,200);
   assert.equal(refreshes,1);
+  assert.equal((await fetch(`${base}/api/windows/sync`,{method:"POST",body:"{}"})).status,403);
+  assert.equal((await fetch(`${base}/api/windows/sync`,{method:"POST",headers:{"x-ezdeck-host":"refresh-host-token-abcdefghijklmnopqrstuvwxyz"},body:"{}"})).status,200);
 });
 
 test("Adicionar apps works on both companion screens and persists selection", {timeout:20000}, async(t)=>{
