@@ -133,8 +133,8 @@
   }
   .add-apps{
     position:fixed; right:18px; bottom:22px; z-index:35;
-    display:flex; align-items:center; gap:7px; min-height:42px; padding:0 15px;
-    border:1px solid rgba(255,255,255,.24); border-radius:22px; cursor:pointer;
+    display:flex; align-items:center; gap:7px; min-height:32px; padding:0 13px;
+    border:1px solid rgba(255,255,255,.24); border-radius:17px; cursor:pointer;
     color:#fff; font:700 13px/1 system-ui,-apple-system,"Segoe UI",sans-serif;
     background:rgba(10,132,255,.92); box-shadow:0 9px 24px rgba(0,0,0,.28);
   }
@@ -240,6 +240,22 @@
     -webkit-overflow-scrolling: auto;
     scroll-snap-type: none;
     scroll-behavior: auto;
+  }
+  /* Alguns tablets com pouca RAM (como Fire antigos) piscam ao recompor
+     transparências e gradientes em camadas. A ponte nativa ativa esta versão
+     estável somente quando o sistema classifica o aparelho como low-RAM. */
+  html.android-low-power .bg{ background:#fff8f6; }
+  html.android-low-power.dark-mode .bg{ background:#07162e; }
+  html.android-low-power .drawer,
+  html.android-low-power .sheet,
+  html.android-low-power .login-scrim{
+    backdrop-filter:none;
+    -webkit-backdrop-filter:none;
+  }
+  html.android-low-power .atile.is-activating,
+  html.android-low-power .dcard.is-activating{
+    animation:none;
+    will-change:auto;
   }
   @keyframes appPress{
     0%{ transform:scale(1); }
@@ -754,6 +770,45 @@
   .login-card .btn.connect:active{ transform: scale(.975); opacity:.9; }
   .login-card .lfoot{ margin-top:16px; font-size:11px; color:var(--ink-3); letter-spacing:.02em; }
 
+  /* Em tablets e celulares deitados, aproveita a área horizontal sem forçar
+     a orientação: contexto à esquerda e conexão à direita. */
+  @media (orientation: landscape) and (min-width: 640px) and (min-height: 360px){
+    .login-scrim{ padding:18px 28px; }
+    .login-card{
+      width:min(720px, 100%);
+      display:grid;
+      grid-template-columns:minmax(190px, .78fr) minmax(300px, 1.22fr);
+      grid-template-areas:
+        "key steps"
+        "title steps"
+        "body steps"
+        "foot pin"
+        ". error"
+        ". submit";
+      column-gap:30px;
+      row-gap:0;
+      align-items:center;
+      text-align:left;
+      padding:26px 30px 22px;
+    }
+    .login-card .lkey{ grid-area:key; margin:0; }
+    .login-card h3{ grid-area:title; margin:0 0 6px; align-self:end; }
+    .login-card .body{ grid-area:body; align-self:start; }
+    .login-card .lsteps{ grid-area:steps; margin:0; align-self:stretch; }
+    .login-card input{ grid-area:pin; margin-top:4px; }
+    .login-card .lerr{ grid-area:error; margin-top:8px; }
+    .login-card .btn.connect{ grid-area:submit; margin-top:10px; }
+    .login-card .lfoot{ grid-area:foot; margin:12px 0 0; align-self:end; }
+  }
+  @media (orientation: landscape) and (min-width: 640px) and (max-height: 480px){
+    .login-scrim{ padding:12px 20px; }
+    .login-card{ padding:18px 24px 16px; column-gap:22px; }
+    .login-card .lkey{ width:52px; height:52px; }
+    .login-card .lsteps li{ padding:3px 0; }
+    .login-card input{ padding:11px; font-size:22px; }
+    .login-card .btn.connect{ padding:11px; }
+  }
+
   /* Jeton-inspired editorial light theme */
   :root{--ink:#360802;--ink-2:rgba(54,8,2,.68);--ink-3:rgba(54,8,2,.46);--accent:#f73b20;--green:#34c771;--amber:#f73b20;--red:#fb2d54;--glass:#fff;--edge:rgba(54,8,2,.12)}
   html,body{background:#fff!important;color:var(--ink)!important;color-scheme:light}
@@ -768,6 +823,8 @@
   .vdots .d{background:rgba(54,8,2,.22)}.vdots .d.on{background:#f73b20}
   .robscard{background:#fdedea;border-color:rgba(247,59,32,.24)}
   .drawer,.sheet,.login-card{background:#fff;color:var(--ink);border-color:rgba(54,8,2,.12);box-shadow:rgba(0,0,0,.12) 0 10px 30px}
+  .ttitle{color:var(--ink)}
+  .thint{color:var(--ink-2);font-weight:600}
   .sheet .srow{background:#fff;border-color:rgba(54,8,2,.1)}
   .login-card .body,.login-card .lsteps p,.login-card .lfoot{color:var(--ink-2)}
   .login-card .lsteps b,.login-card h3{color:var(--ink)}
@@ -816,16 +873,15 @@
         <div class="launchpadwrap">
           <div class="launchpad" id="launchpad"><div class="launchpad-track" id="launchpadTrack"></div></div>
           <div class="dots" id="dots"></div>
-          <div class="page-actions"><button class="add-page" id="removePage" type="button" data-i18n="page.remove" hidden>− Página</button><button class="add-page" id="addPage" type="button" data-i18n="page.add">＋ Adicionar página</button></div>
+          <div class="page-actions"><button class="add-page" id="removePage" type="button" data-i18n="page.remove" hidden>− Página</button><button class="add-page" id="addPage" type="button" data-i18n="page.add">＋ Página</button></div>
         </div>
       </div>
     </section>
     <section class="screen" id="screenRecents"></section>
   </div>
 </main>
-<button class="add-apps" id="addApps" type="button" data-i18n="dock.addApps">＋ Adicionar apps</button>
+<button class="add-apps" id="addApps" type="button" data-i18n="dock.addApps">＋ APP</button>
 <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ativar modo escuro" title="Ativar modo escuro">☾</button>
-<div class="language-menu" id="languageMenu"><button id="languageToggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Selecionar idioma"><span class="language-flag" id="languageFlag">🇧🇷</span><span id="languageLabel">Português</span><span class="language-caret">⌄</span></button><div class="language-popover" id="languagePopover" role="menu" aria-label="Selecionar idioma" hidden></div></div>
 
 <div class="vdots" id="vdots"></div>
 
@@ -906,7 +962,7 @@
       "recents.title": "Apps abertos", "recents.empty": "Nada aberto ainda — abra um app no Windows para ele aparecer aqui",
       "modal.pinTitle": "Fixar apps como favoritos",
       "dock.opened": "aberto", "dock.noOpenApps": "Nada aberto ainda — abra um app no Windows para ele aparecer aqui",
-      "dock.pinApps": "Fixar apps como favoritos", "dock.pinSubtitle": "Escolha os atalhos do Windows que aparecem no painel.", "dock.addApps": "＋ Adicionar apps",
+      "dock.pinApps": "Fixar apps como favoritos", "dock.pinSubtitle": "Escolha os atalhos do Windows que aparecem no painel.", "dock.addApps": "＋ APP",
       "dock.pinnedLabel": "fixado", "dock.limit": "limite", "dock.pin": "+ fixar", "dock.close": "Fechar",
       "modal.removeWebsite": "Remover website dos favoritos?", "modal.removeApp": "Remover dos favoritos?",
       "modal.removeWebsiteBody": "\"{name}\" sai dos fixos.",
@@ -936,7 +992,7 @@
       "update.download": "Baixar", "update.reload": "Recarregar", "update.release": "Abrir release", "update.macTitle": "App do Windows desatualizado",
       "update.macSubtitle": "Nova versão {version} disponível — atualize o EzDeck no computador",
       "update.close": "Fechar aviso", "site": "site", "footer.brand": "EzDeck",
-      "page.remove": "− Página", "page.add": "＋ Adicionar página", "command.sending": "Enviando…", "command.unconfirmed": "Comando não confirmado", "command.confirmed": "✓ Comando confirmado · {ms} ms", "command.failed": "Não foi possível confirmar. Verifique a conexão.", "dock.limitHint": "Remova uma peça para adicionar outra.", "dock.installedCount": "{count} apps instalados", "page.removeFailed": "Não foi possível remover a página.", "dock.loading": "Carregando…", "dock.loadAppsFailed": "Não foi possível listar os apps. Confira o EzDeck no Windows.", "theme.light": "Ativar modo claro", "theme.dark": "Ativar modo escuro"
+      "page.remove": "− Página", "page.add": "＋Página", "command.sending": "Enviando…", "command.unconfirmed": "Comando não confirmado", "command.confirmed": "✓ Comando confirmado · {ms} ms", "command.failed": "Não foi possível confirmar. Verifique a conexão.", "dock.limitHint": "Remova uma peça para adicionar outra.", "dock.installedCount": "{count} apps instalados", "page.removeFailed": "Não foi possível remover a página.", "dock.loading": "Carregando…", "dock.loadAppsFailed": "Não foi possível listar os apps. Confira o EzDeck no Windows.", "theme.light": "Ativar modo claro", "theme.dark": "Ativar modo escuro"
     },
     en: {
       "aria.language": "Language", "aria.selectLanguage": "Select language", "aria.close": "Close",
@@ -984,6 +1040,8 @@
     }
   };
   Object.assign(I18N, window.EZDECK_EXTRA_I18N || {});
+  // Controle curto e estável: não desequilibra o rodapé do launcher em telas menores.
+  Object.values(I18N).forEach(function(dictionary){ dictionary["dock.addApps"] = "＋ APP"; });
   const LANGUAGES = [
     { value:"pt-BR", label:"Português", flag:"🇧🇷" }, { value:"en", label:"English", flag:"🇺🇸" },
     { value:"es", label:"Español", flag:"🇪🇸" }, { value:"ja", label:"日本語", flag:"🇯🇵" },
@@ -1001,11 +1059,9 @@
     return found ? found.value : "en";
   }
   function getInitialLanguage(){
-    let browserLanguage = null;
-    try { browserLanguage = typeof navigator !== "undefined" ? navigator.language : null; } catch (e) {}
-    let saved = null;
-    try { saved = localStorage.getItem("ezdeck-locale"); } catch (e) {}
-    return saved && LANGUAGES.some(item => item.value === saved) ? saved : detectLanguage(browserLanguage);
+    // O idioma vem do host Windows após a conexão. Evita o idioma do navegador
+    // (ex.: alemão) assumir o APK antes de receber a preferência compartilhada.
+    return "pt-BR";
   }
   let currentLanguage = getInitialLanguage();
   function t(key, values = {}){
@@ -1016,7 +1072,8 @@
   }
   function renderLanguage(){
     document.documentElement.lang = currentLanguage;
-    document.documentElement.dir = currentLanguage === "ar" ? "rtl" : "ltr";
+    // Árabe traduz o texto, mas a grade e a ordem dos apps permanecem estáveis.
+    document.documentElement.dir = "ltr";
     document.querySelectorAll("[data-i18n]").forEach(function(element){
       element.textContent = t(element.dataset.i18n);
     });
@@ -1034,14 +1091,25 @@
     if (popover) popover.setAttribute("aria-label", t("aria.selectLanguage"));
     if (popover) popover.querySelectorAll("[data-locale]").forEach(function(item){ item.setAttribute("aria-checked", item.dataset.locale === currentLanguage ? "true" : "false"); const check = item.querySelector(".language-check"); if (check) check.textContent = item.dataset.locale === currentLanguage ? "✓" : ""; });
   }
-  (function setupLanguageMenu(){
-    const root = document.getElementById("languageMenu"), toggle = document.getElementById("languageToggle"), popover = document.getElementById("languagePopover");
-    if (!root || !toggle || !popover) return;
-    LANGUAGES.forEach(function(item){ const option=document.createElement("button"); option.type="button"; option.role="menuitemradio"; option.dataset.locale=item.value; option.innerHTML='<span class="language-flag">'+item.flag+'</span><span>'+item.label+'</span><span class="language-check" aria-hidden="true"></span>'; option.addEventListener("click",function(){ currentLanguage=item.value; try{localStorage.setItem("ezdeck-locale",currentLanguage)}catch(e){} renderLanguage(); popover.hidden=true; toggle.setAttribute("aria-expanded","false"); toggle.focus(); }); popover.append(option); });
-    toggle.addEventListener("click",function(){ popover.hidden=!popover.hidden; toggle.setAttribute("aria-expanded",String(!popover.hidden)); });
-    document.addEventListener("pointerdown",function(event){ if (!root.contains(event.target)){ popover.hidden=true; toggle.setAttribute("aria-expanded","false"); } });
-    document.addEventListener("keydown",function(event){ if(event.key === "Escape" && !popover.hidden){ popover.hidden=true; toggle.setAttribute("aria-expanded","false"); toggle.focus(); } });
-  })();
+  function applyHostLanguage(locale){
+    if (!LANGUAGES.some(item => item.value === locale) || locale === currentLanguage) return;
+    currentLanguage = locale;
+    try { localStorage.setItem("ezdeck-locale", locale); } catch (e) {}
+    renderLanguage();
+    // A tela de apps abertos é construída dinamicamente. Sem refazê-la, os
+    // rótulos que já estavam no DOM ficavam no idioma da primeira abertura,
+    // embora o host já tivesse enviado a nova preferência.
+    // Os nomes dos apps não passam por i18n: são nomes reais do Windows.
+    if (typeof state !== "undefined" && state){
+      if (document.body.classList.contains("swiping")){
+        launchpadRenderPending = true;
+        recentsRenderPending = true;
+      } else {
+        renderLaunchpad(true);
+        renderRecents();
+      }
+    }
+  }
   renderLanguage();
 
   const PALETTE = [
@@ -1104,8 +1172,8 @@
   }
   function syncLoginOrientation(){
     const android = window.EzDeckAndroid;
-    if (!android || typeof android.setLoginPortrait !== "function") return;
-    try { android.setLoginPortrait(loginOpen); } catch (e) {}
+    if (!android || typeof android.setLoginResponsive !== "function") return;
+    try { android.setLoginResponsive(); } catch (e) {}
   }
   function showLogin(){
     if (loginOpen) return;
@@ -1437,7 +1505,7 @@
 
   function applyConfigSnapshot(config){
     if (!config || !Array.isArray(config.pieces) || !Array.isArray(config.pinned)) return;
-    applyAppsPayload(config.pieces, config.pinned, state.running, config.limits, config.revision);
+    applyAppsPayload(config.pieces, config.pinned, state.running, config.limits, config.revision, config.pageCount, config.locale);
   }
 
   let lastFocus = null;
@@ -1563,8 +1631,17 @@
   const iconInflight = new Map();
   const ICON_REV = "6";
   const ua = typeof navigator === "object" && navigator ? navigator.userAgent || "" : "";
-  const IS_ANDROID_WEBVIEW = /Android/i.test(ua) && (/\bwv\b/i.test(ua) || /Version\/4\.0/i.test(ua));
+  const IS_ANDROID_WEBVIEW = Boolean(
+    (typeof window !== "undefined" && window.EzDeckAndroid) ||
+    (/Android/i.test(ua) && (/\bwv\b/i.test(ua) || /Version\/4\.0/i.test(ua)))
+  );
   if (IS_ANDROID_WEBVIEW) document.documentElement.classList.add("android-webview");
+  try {
+    const bridge = window.EzDeckAndroid;
+    if (IS_ANDROID_WEBVIEW && bridge && typeof bridge.isLowPowerDevice === "function" && bridge.isLowPowerDevice()) {
+      document.documentElement.classList.add("android-low-power");
+    }
+  } catch (e) {}
 
   function iconPath(name){
     return "/api/apps/" + encodeURIComponent(name) + "/icon?v=" + ICON_REV;
@@ -2152,7 +2229,7 @@
     const r = await post("/api/config/pages");
     if (r.status !== 200 || !r.data?.config){ toast(serverErrorMessage(r.data, "toast.pinFailed"), "err"); return; }
     const cfg = r.data.config;
-    applyAppsPayload(cfg.pieces, cfg.pinned, state.running, cfg.limits, cfg.revision, cfg.pageCount);
+    applyAppsPayload(cfg.pieces, cfg.pinned, state.running, cfg.limits, cfg.revision, cfg.pageCount, cfg.locale);
     renderLaunchpad(true);
     launchpad.scrollLeft = (cfg.pageCount - 1) * launchpad.clientWidth;
   });
@@ -2161,7 +2238,7 @@
     const r = await req("/api/config/pages", { method: "DELETE", timeout: 4000 });
     if (r.status !== 200 || !r.data?.config){ toast(r.data?.error || t("page.removeFailed"), "err"); return; }
     const cfg = r.data.config;
-    applyAppsPayload(cfg.pieces, cfg.pinned, state.running, cfg.limits, cfg.revision, cfg.pageCount);
+    applyAppsPayload(cfg.pieces, cfg.pinned, state.running, cfg.limits, cfg.revision, cfg.pageCount, cfg.locale);
     renderLaunchpad(true);
     launchpad.scrollLeft = Math.max(0, cfg.pageCount - 1) * launchpad.clientWidth;
   });
@@ -2454,7 +2531,10 @@
     launchpadRenderPending = false;
     renderLaunchpad(true);
   }
-  function applyAppsPayload(pieces, pinned, running, limits, revision, pageCount){
+  function applyAppsPayload(pieces, pinned, running, limits, revision, pageCount, locale){
+    // Idioma é uma preferência independente da lista. Processá-lo antes da
+    // validação torna a sincronização tolerante a hosts de versões diferentes.
+    applyHostLanguage(locale);
     if (!Array.isArray(pieces) || !Array.isArray(pinned) || !Array.isArray(running)) return false;
     const nextPieces = pieces.length && typeof pieces[0] === "object"
       ? pieces
@@ -2516,7 +2596,7 @@
       } else if (m.type === "apps"){
         state.online = true;
         maybeReloadForUi(m.v);
-        applyAppsPayload(m.pieces || m.pinned, m.pinned, m.running, m.limits, m.revision, m.pageCount);
+        applyAppsPayload(m.pieces || m.pinned, m.pinned, m.running, m.limits, m.revision, m.pageCount, m.locale);
       } else if (m.type === "installed"){
         // Um ícone pode ter sido trocado no Windows mantendo o mesmo nome.
         // Descarte os blobs antigos e redesenhe o launcher imediatamente.
@@ -2558,7 +2638,7 @@
         if (Array.isArray(r.data && (r.data.pieces || r.data.pinned)) && Array.isArray(r.data && r.data.running)){
           ok = true;
           maybeReloadForUi(r.data.v);
-          applyAppsPayload(r.data.pieces || r.data.pinned, r.data.pinned, r.data.running, r.data.limits, r.data.revision, r.data.pageCount);
+          applyAppsPayload(r.data.pieces || r.data.pinned, r.data.pinned, r.data.running, r.data.limits, r.data.revision, r.data.pageCount, r.data.locale);
         }
       }
     } catch (e) { /* offline: keep last view */ }

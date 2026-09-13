@@ -13,19 +13,19 @@ const [index, windows, extra, windowsI18n, mobileI18n, androidIndex, androidExtr
   readFile(new URL("../android/app/src/main/assets/public/mobile-i18n.js", import.meta.url), "utf8"),
 ]);
 
-test("seletor de idioma fica disponível no navegador, Windows e APK", () => {
+test("Windows controla o idioma compartilhado; navegador e APK só o refletem", () => {
   for (const code of ["es", "ja", "it", "fr", "de", "zh-CN", "vi", "ko", "ar"]) {
     assert.match(extra, new RegExp(`(?:^|[,{])\\s*["']?${code}`));
   }
-  assert.match(index, /languageMenu/);
-  assert.match(index, /ezdeck-locale/);
+  assert.doesNotMatch(index, /id="languageMenu"/);
   assert.match(windows, /language-menu/);
   assert.match(windows, /windows-i18n\.js/);
   assert.match(windowsI18n, /flagSvg/);
   assert.match(windowsI18n, /Iniciar com Windows/);
   assert.match(windowsI18n, /localizePageLabel/);
   assert.match(mobileI18n, /command\.confirmed/);
-  assert.match(mobileI18n, /renderFlags/);
+  assert.match(index, /applyHostLanguage/);
+  assert.match(index, /document\.documentElement\.dir = "ltr"/);
   assert.match(index, /upDownload" data-i18n="update\.download/);
   assert.match(androidIndex, /i18n-extra\.js/);
   assert.match(androidIndex, /mobile-i18n\.js/);

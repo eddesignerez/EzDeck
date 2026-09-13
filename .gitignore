@@ -9,6 +9,8 @@ build/
 index.html.bak
 .gradle/
 android/.gradle/
+android/.gradle-user-home/
+.gradle-user-home/
 android/build/
 android/app/build/
 android/.idea/

@@ -1,6 +1,7 @@
 package com.eddesignerez.ezdeck
 
 import android.annotation.SuppressLint
+import android.app.ActivityManager
 import android.app.AlertDialog
 import android.app.DownloadManager
 import android.content.BroadcastReceiver
@@ -227,14 +228,16 @@ class MainActivity : ComponentActivity() {
                 }
             }
             @android.webkit.JavascriptInterface
-            fun setLoginPortrait(enabled: Boolean) {
+            fun setLoginResponsive() {
                 runOnUiThread {
-                    requestedOrientation = if (enabled) {
-                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                    } else {
-                        ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                    }
+                    requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                 }
+            }
+            @android.webkit.JavascriptInterface
+            fun isLowPowerDevice(): Boolean {
+                val manager = getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+                return (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT && manager?.isLowRamDevice == true) ||
+                    ((manager?.memoryClass ?: Int.MAX_VALUE) <= 128)
             }
             @android.webkit.JavascriptInterface
             fun appVersion(): String = BuildConfig.VERSION_NAME

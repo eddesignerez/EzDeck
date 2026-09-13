@@ -2,7 +2,10 @@ import { readFile, writeFile, rename } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import { createHash } from "node:crypto";
 
-const DEFAULT = { schemaVersion: 2, revision: 0, pieces: [], pinned: [], pageCount: 1 };
+const DEFAULT = { schemaVersion: 2, revision: 0, pieces: [], pinned: [], pageCount: 1, locale: "pt-BR" };
+export const SUPPORTED_LOCALES = new Set(["pt-BR", "en", "es", "ja", "it", "fr", "de", "zh-CN", "vi", "ko", "ar"]);
+export function isSupportedLocale(value) { return SUPPORTED_LOCALES.has(value); }
+export function normalizeLocale(value) { return isSupportedLocale(value) ? value : "pt-BR"; }
 export const PINNED_PAGE_SIZE = 8;
 export const PINNED_MAX_PAGES = 5;
 export const MAX_DOCK_SLOTS = PINNED_PAGE_SIZE * PINNED_MAX_PAGES;
@@ -188,6 +191,8 @@ export function normalizeConfig(raw) {
     pageCount: Number.isInteger(source.pageCount)
       ? Math.min(PINNED_MAX_PAGES, Math.max(1, source.pageCount))
       : Math.max(1, Math.min(PINNED_MAX_PAGES, Math.ceil(pieces.reduce((max, piece) => Math.max(max, (piece.position ?? 0) + 1), 0) / PINNED_PAGE_SIZE))),
+    // O idioma é definido no EzDeck Windows e compartilhado com todos os companions.
+    locale: normalizeLocale(source.locale),
   };
 }
 

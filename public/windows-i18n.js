@@ -32,6 +32,7 @@
 
   const style = document.createElement("style");
   style.textContent = `
+    header{position:relative;z-index:200}.language-menu{z-index:201}.language-popover{z-index:202}
     .ezdeck-flag{width:22px;height:15px;display:inline-grid;place-items:center;flex:0 0 auto}
     .ezdeck-flag svg{width:22px;height:15px;display:block;border-radius:3px;box-shadow:0 0 0 1px rgba(255,255,255,.22)}
     :root[data-theme="dark"]{--bg:#07162e;--bg2:#0d2344;--glass:#0d1e39;--line:#31557f;--ink:#f2f7ff;--sub:#b7c8df;--accent:#ff6b57}
@@ -86,7 +87,7 @@
   }
   function apply(){
     const locale=safeLocale(), data=copy[locale] || copy["pt-BR"];
-    document.documentElement.lang=locale; document.documentElement.dir=locale === "ar" ? "rtl" : "ltr";
+    document.documentElement.lang=locale; document.documentElement.dir="ltr";
     const flag=document.getElementById("language-flag"), label=document.getElementById("language-label"), toggle=document.getElementById("language-toggle");
     if(flag) { flag.className="ezdeck-flag"; flag.innerHTML=selectedFlag(locale); }
     if(label) label.textContent=data.short;
@@ -110,26 +111,45 @@
   function rebuildLanguageMenu(){
     const pop=document.getElementById("language-popover"), toggle=document.getElementById("language-toggle"); if(!pop||!toggle) return;
     const locales=["pt-BR","en","es","ja","it","fr","de","zh-CN","vi","ko","ar"];
-    pop.replaceChildren(...locales.map(locale=>{const b=document.createElement("button");b.type="button";b.role="menuitemradio";b.dataset.lang=locale;b.innerHTML=flagNode(locale)+"<span>"+(copy[locale]?.short||locale)+"</span><span class='language-check' aria-hidden='true'>"+(locale===safeLocale()?"✓":"")+"</span>";b.setAttribute("aria-checked",String(locale===safeLocale()));b.onclick=()=>{try{localStorage.setItem("ezdeck-locale",locale)}catch(_){};apply();rebuildLanguageMenu();pop.hidden=true;toggle.setAttribute("aria-expanded","false");toggle.focus();};return b;}));
+    pop.replaceChildren(...locales.map(locale=>{const b=document.createElement("button");b.type="button";b.role="menuitemradio";b.dataset.lang=locale;b.innerHTML=flagNode(locale)+"<span>"+(copy[locale]?.short||locale)+"</span><span class='language-check' aria-hidden='true'>"+(locale===safeLocale()?"✓":"")+"</span>";b.setAttribute("aria-checked",String(locale===safeLocale()));b.onclick=()=>{try{localStorage.setItem("ezdeck-locale",locale)}catch(_){};apply();rebuildLanguageMenu();window.fetch("/api/config/language",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({locale})}).catch(()=>{});pop.hidden=true;toggle.setAttribute("aria-expanded","false");toggle.focus();};return b;}));
   }
   function localizeKnown(message){
     const known={"Lista atualizada no Android":"refreshed","Alterações enviadas para os dispositivos":"sent","Atalho criado":"shortcutCreated","Alterações salvas":"savedChanges","Adicionado ao painel":"addedPanel","Escolha um espaço vazio":"chooseEmpty","Item personalizado excluído":"customDeleted","Ícone atualizado":"iconUpdated","Nova página criada":"newPage","Página removida":"pageRemoved","Inicialização com Windows ativada":"startOn","Inicialização com Windows desativada":"startOff"};
     return known[message] ? tr(known[message]) : message;
   }
   const previousToast=window.toast;
-  if(typeof previousToast === "function") window.toast=(message)=>previousToast(localizeKnown(String(message)));
+  function notify(message){
+    if (typeof previousToast === "function") { previousToast(localizeKnown(String(message))); return; }
+    const toast=document.getElementById("toast"); if(!toast) return;
+    toast.textContent=localizeKnown(String(message)); toast.classList.add("on");
+    clearTimeout(notify.timer); notify.timer=setTimeout(()=>toast.classList.remove("on"),2400);
+  }
   const previousRenderDeck=window.renderDeck;
   if(typeof previousRenderDeck === "function") window.renderDeck=function(){ const result=previousRenderDeck.apply(this,arguments); apply(); return result; };
   const previousLoad=window.load;
   if(typeof previousLoad === "function") window.load=async function(){ const result=await previousLoad.apply(this,arguments); apply(); return result; };
 
+  // A camada de idioma não pode perder o token do controle local do Windows.
+  // Sem ele, os botões de host (inicialização, sincronização e desligar) eram
+  // recusados pelo servidor mesmo parecendo responder na tela.
+  const hostToken = new URLSearchParams(location.search).get("token") || "";
+  async function hostApi(path, options = {}) {
+    const response = await fetch(path, {
+      ...options,
+      headers: { "X-EzDeck-Host": hostToken, "Content-Type": "application/json", ...(options.headers || {}) },
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw Error(body.error || tr("syncFailed"));
+    return body;
+  }
+
   const refresh=document.getElementById("refresh");
-  if(refresh) refresh.onclick=async()=>{try{await window.api("/api/windows/refresh-apps",{method:"POST",body:"{}"});await window.load();window.toast(tr("refreshed"));}catch(error){window.toast(error.message);}};
+  if(refresh) refresh.onclick=async()=>{try{await hostApi("/api/windows/refresh-apps",{method:"POST",body:"{}"});await window.load();notify(tr("refreshed"));}catch(error){notify(error.message);}};
   const startup=document.getElementById("start-with-windows");
-  if(startup) startup.onchange=async event=>{const checkbox=event.target,selected=checkbox.checked;checkbox.disabled=true;try{checkbox.checked=(await window.api("/api/windows/startup",{method:"POST",body:JSON.stringify({enabled:selected})})).enabled;window.toast(tr(checkbox.checked?"startOn":"startOff"));}catch(error){checkbox.checked=!selected;window.toast(error.message);}finally{checkbox.disabled=false;}};
+  if(startup) startup.onchange=async event=>{const checkbox=event.target,selected=checkbox.checked;checkbox.disabled=true;try{checkbox.checked=(await hostApi("/api/windows/startup",{method:"POST",body:JSON.stringify({enabled:selected})})).enabled;notify(tr(checkbox.checked?"startOn":"startOff"));}catch(error){checkbox.checked=!selected;notify(error.message);}finally{checkbox.disabled=false;}};
 
   const sync=document.getElementById("save-sync");
-  if(sync) sync.onclick=async()=>{if(!inventoryDirty||syncBusy)return;syncBusy=true;sync.disabled=true;sync.textContent=tr("sending");try{await window.api("/api/windows/sync",{method:"POST",body:"{}"});inventoryDirty=false;sync.disabled=true;sync.textContent=tr("save");window.toast(tr("sent"));}catch(error){sync.disabled=false;sync.textContent=tr("saveDirty");window.toast(tr("syncFailed")+": "+error.message);}finally{syncBusy=false;}};
+  if(sync) sync.onclick=async()=>{if(!inventoryDirty||syncBusy)return;syncBusy=true;sync.disabled=true;sync.textContent=tr("sending");try{await hostApi("/api/windows/sync",{method:"POST",body:"{}"});inventoryDirty=false;sync.disabled=true;sync.textContent=tr("save");notify(tr("sent"));}catch(error){sync.disabled=false;sync.textContent=tr("saveDirty");notify(tr("syncFailed")+": "+error.message);}finally{syncBusy=false;}};
 
   function dialog(title, body, onConfirm, confirmLabel){
     const d=document.createElement("dialog");d.innerHTML=`<form class="form" method="dialog"><h2>${title}</h2>${body}<div class="actions"><button class="button" id="cancel" type="button">${tr("cancel")}</button><button class="button" id="ok" type="submit">${confirmLabel||tr("confirm")}</button></div></form>`;document.body.append(d);
@@ -139,7 +159,7 @@
   if(pin) pin.onclick=()=>{const d=dialog(tr("pinTitle"),`<p>${tr("pinInfo")}</p><input id="new-pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" value="${pin.textContent.replace(/\D/g,"").slice(-4)}"><div class="error"></div>`,async()=>{const value=d.querySelector("#new-pin").value.trim();const response=await fetch("/api/pin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(value?{pin:value}:{})});const body=await response.json();if(!response.ok)throw Error(body.error||tr("syncFailed"));pin.textContent="PIN "+body.pin;});};
   if(port) port.onclick=()=>{const d=dialog(tr("portTitle"),`<p>${tr("portInfo")}</p><input id="new-port" type="number" min="1" max="65535" value="${port.dataset.value||3100}"><div class="error"></div>`,async()=>{const value=Number(d.querySelector("#new-port").value);if(!Number.isInteger(value)||value<1||value>65535)throw Error(tr("portRange"));if(!window.chrome?.webview)throw Error("EzDeck Windows required.");window.chrome.webview.postMessage({type:"restart",port:value});},tr("restart"));};
   if(auto) auto.onclick=()=>fetch("/api/pin",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"}).then(response=>response.json()).then(body=>{if(body.pin)pin.textContent="PIN "+body.pin;}).catch(error=>window.toast(error.message));
-  if(shutdown) shutdown.onclick=()=>dialog(tr("shutdownTitle"),`<p>${tr("shutdownInfo")}</p><div class="error"></div>`,async()=>{if(window.chrome?.webview)window.chrome.webview.postMessage({type:"shutdown"});else await window.fetch("/api/windows/shutdown",{method:"POST",headers:{"Content-Type":"application/json"}});});
+  if(shutdown) shutdown.onclick=()=>dialog(tr("shutdownTitle"),`<p>${tr("shutdownInfo")}</p><div class="error"></div>`,async()=>{if(window.chrome?.webview)window.chrome.webview.postMessage({type:"shutdown"});else await hostApi("/api/windows/shutdown",{method:"POST"});});
 
   document.getElementById("new-key")?.addEventListener("click",()=>setTimeout(localizeDialog,0));
   document.getElementById("theme-toggle")?.addEventListener("click",()=>setTimeout(apply,0));

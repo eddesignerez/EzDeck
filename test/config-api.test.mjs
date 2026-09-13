@@ -26,8 +26,27 @@ test("GET /api/config vazio retorna pinned vazio", async () => {
     assert.equal(r.status, 200);
     assert.deepEqual(await r.json(), {
       ok: true,
-      config: { schemaVersion: 2, revision: 0, pieces: [], pinned: [], pageCount: 1, limits: pinnedLimits() },
+      config: { schemaVersion: 2, revision: 0, pieces: [], pinned: [], pageCount: 1, locale: "pt-BR", limits: pinnedLimits() },
     });
+  } finally { await s.close(); await rm(s.dir, { recursive: true, force: true }); }
+});
+
+test("POST /api/config/language persiste o idioma do host para os companions", async () => {
+  const s = await startTemp();
+  try {
+    const changed = await fetch(`${base(s)}/api/config/language`, {
+      method: "POST", body: JSON.stringify({ locale: "ar" }),
+    });
+    assert.equal(changed.status, 200);
+    const body = await changed.json();
+    assert.equal(body.config.locale, "ar");
+    assert.equal(body.config.revision, 1);
+
+    const invalid = await fetch(`${base(s)}/api/config/language`, {
+      method: "POST", body: JSON.stringify({ locale: "xx" }),
+    });
+    assert.equal(invalid.status, 400);
+    assert.equal((await (await fetch(`${base(s)}/api/apps`)).json()).locale, "ar");
   } finally { await s.close(); await rm(s.dir, { recursive: true, force: true }); }
 });
 

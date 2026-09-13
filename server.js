@@ -41,6 +41,7 @@ import {
   PINNED_LIMIT_CODE,
   PINNED_LIMIT_MESSAGE,
   pinnedLimits,
+  isSupportedLocale,
 } from "./config.js";
 import { connectOBS } from "./obs-ws.js";
 import { ensurePin, newPin, isLoopback, sessionCookie, tokenFromCookie, clearLegacyPinCookie, createSessionStore, createPinLocks, safeEqual, writePinFile } from "./auth.js";
@@ -268,6 +269,7 @@ function createStatusFeed({ readConfig, listProcesses, version = null }) {
       revision: cfg.revision,
       pinned: cfg.pinned,
       pageCount: cfg.pageCount,
+      locale: cfg.locale,
       running,
       devices: clients.size,
       ...(version ? { v: version() } : {}),
@@ -355,6 +357,7 @@ export function makeApp(deps = {}) {
         pieces: safe.pieces,
         pinned: safe.pinned,
         pageCount: safe.pageCount,
+        locale: safe.locale,
         limits: pinnedLimits(),
       };
     };
@@ -557,8 +560,8 @@ export function makeApp(deps = {}) {
       Promise.resolve()
         .then(() => readConfig())
         .then(cfg => appTools.listAppProcesses()
-          .then(running => ok({ pieces: cfg.pieces, revision: cfg.revision, pinned: cfg.pinned, pageCount: cfg.pageCount, running, v: appVersion(), limits: pinnedLimits() }))
-          .catch(() => ok({ pieces: cfg.pieces, revision: cfg.revision, pinned: cfg.pinned, pageCount: cfg.pageCount, running: [], v: appVersion(), limits: pinnedLimits() })))
+          .then(running => ok({ pieces: cfg.pieces, revision: cfg.revision, pinned: cfg.pinned, pageCount: cfg.pageCount, locale: cfg.locale, running, v: appVersion(), limits: pinnedLimits() }))
+          .catch(() => ok({ pieces: cfg.pieces, revision: cfg.revision, pinned: cfg.pinned, pageCount: cfg.pageCount, locale: cfg.locale, running: [], v: appVersion(), limits: pinnedLimits() })))
         .catch(err => fail(res, err));
       return;
     }
@@ -584,6 +587,25 @@ export function makeApp(deps = {}) {
         })
         .then(cfg => { ok({ ok: true, config: publicCfg(cfg) }); if (onStatusChange) onStatusChange(); })
         .catch(err => err?.code === PINNED_LIMIT_CODE ? rejectPinnedLimit() : fail(res, err)));
+      return;
+    }
+    // O Windows é a fonte única do idioma; a alteração é enviada pelo feed WS.
+    if (url.pathname === "/api/config/language" && req.method === "POST") {
+      readBody(req, res).then(body => {
+        if (body === BODY_TOO_BIG) return;
+        if (body === BODY_INVALID) { respondError(400, { error: "corpo inválido" }); return; }
+        if (!isSupportedLocale(body?.locale)) { respondError(400, { error: "idioma inválido" }); return; }
+        withConfigLock(() => Promise.resolve()
+          .then(() => readConfig())
+          .then(cfg => {
+            if (cfg.locale === body.locale) return cfg;
+            cfg.locale = body.locale;
+            cfg.revision += 1;
+            return persistConfig(cfg);
+          })
+          .then(cfg => { ok({ ok: true, config: publicCfg(cfg) }); if (onStatusChange) onStatusChange(); })
+          .catch(err => fail(res, err)));
+      });
       return;
     }
     // Nunca apaga atalhos automaticamente: a última página só pode ser

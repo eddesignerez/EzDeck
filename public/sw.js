@@ -1,5 +1,5 @@
 // Nova instalação: descarta também o cache de páginas abertas no navegador.
-const CACHE = "ezdeck-v8";
+const CACHE = "ezdeck-v10";
 const PRECACHE = ["/", "/index.html", "/i18n-extra.js", "/mobile-i18n.js", "/windows-i18n.js", "/icon-192.png", "/icon-192-dark.png", "/icon-512.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", function(e) {
