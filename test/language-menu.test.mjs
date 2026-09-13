@@ -11,7 +11,7 @@ const [index, windows, extra, androidIndex, androidExtra] = await Promise.all([
 ]);
 
 test("seletor de idioma fica disponível no navegador, Windows e APK", () => {
-  for (const code of ["es", "ja", "it", "fr", "de", "zh-CN", "vi"]) {
+  for (const code of ["es", "ja", "it", "fr", "de", "zh-CN", "vi", "ko", "ar"]) {
     assert.match(extra, new RegExp(`(?:^|[,{])\\s*["']?${code}`));
   }
   assert.match(index, /languageMenu/);

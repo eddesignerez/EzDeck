@@ -1,6 +1,6 @@
 # EzDeck
 
-Idiomas / Languages: [Português](README.md) · [English](README.en.md) · [Español](README.es.md) · [日本語](README.ja.md) · [Italiano](README.it.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [简体中文](README.zh-CN.md) · [Tiếng Việt](README.vi.md)
+Idiomas / Languages: [Português](README.md) · [English](README.en.md) · [Español](README.es.md) · [日本語](README.ja.md) · [Italiano](README.it.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [简体中文](README.zh-CN.md) · [Tiếng Việt](README.vi.md) · [한국어](README.ko.md) · [العربية](README.ar.md)
 
 Painel local de atalhos para usar um computador Windows a partir de Android, tablet ou navegador. Transforme um celular antigo em um controle no estilo Stream Deck: escolha os aplicativos no computador e abra ou foque cada um pela tela auxiliar.
 
