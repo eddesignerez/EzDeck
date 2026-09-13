@@ -2294,6 +2294,11 @@
   let uiVersionSeen = null;
   function maybeReloadForUi(v){
     if (!v) return;
+    // No WebView Android, uma troca de mtime do host não deve forçar
+    // location.reload(): o WebView pode receber um resume/reconexão junto
+    // com o broadcast e isso aparece como uma piscada para o usuário.
+    // A atualização do launcher Android acontece ao reabrir o app/Release.
+    if (IS_ANDROID_WEBVIEW) return;
     if (uiVersionSeen === null){ uiVersionSeen = v; return; }
     if (uiVersionSeen !== v){
       toast(t("toast.updated"), "");
