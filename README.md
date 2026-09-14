@@ -35,6 +35,7 @@ Permita a rede apenas no perfil **Privado** caso o Firewall do Windows peça aut
 
 - [Manual de uso](MANUAL_DE_USO.md): instalação, pareamento, painel, ajustes e solução de conexão.
 - [Mapa mental](MAPA_MENTAL.md): visão geral do host Windows, clientes, rede e segurança.
+- [Política de privacidade](PRIVACY.md): dados locais, comunicação na rede e remoção de dados.
 
 ## Arquitetura
 
@@ -52,4 +53,4 @@ Para uma versão para macOS, baixe o projeto original [Dokke](https://github.com
 
 ## Assinatura e releases
 
-Os binários públicos serão gerados no GitHub Actions e a política de release está em [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md). Enquanto um instalador não tiver assinatura de código, o Windows pode apresentar um aviso do SmartScreen: baixe somente pela Release oficial do EzDeck.
+Os binários públicos serão gerados no GitHub Actions e a política de release está em [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md). A preparação para a SignPath Foundation está em [SIGNPATH_FOUNDATION.md](SIGNPATH_FOUNDATION.md). Enquanto um instalador não tiver assinatura de código, o Windows pode apresentar um aviso do SmartScreen: baixe somente pela Release oficial do EzDeck.
