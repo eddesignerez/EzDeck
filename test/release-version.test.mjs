@@ -9,10 +9,10 @@ const [packageJson, publicVersion, androidGradle, signingPolicy] = await Promise
   readFile(new URL("../CODE_SIGNING_POLICY.md", import.meta.url), "utf8"),
 ]);
 
-test("todos os metadados apontam para a release v0.2.8", () => {
-  assert.equal(JSON.parse(packageJson).version, "0.2.8");
-  assert.deepEqual(JSON.parse(publicVersion), { tag: "v0.2.8", apkVersion: "0.2.8" });
-  assert.match(androidGradle, /versionCode = 11/);
-  assert.match(androidGradle, /versionName = "0\.2\.8"/);
+test("todos os metadados apontam para a release v0.2.9", () => {
+  assert.equal(JSON.parse(packageJson).version, "0.2.9");
+  assert.deepEqual(JSON.parse(publicVersion), { tag: "v0.2.9", apkVersion: "0.2.9" });
+  assert.match(androidGradle, /versionCode = 12/);
+  assert.match(androidGradle, /versionName = "0\.2\.9"/);
   assert.match(signingPolicy, /GitHub Actions/);
 });

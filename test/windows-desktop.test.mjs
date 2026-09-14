@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium } from "playwright";
@@ -8,6 +8,13 @@ import { createCustomActions } from "../platform/windows/custom-actions.js";
 import { parseShortcut, sendShortcut } from "../platform/windows/shortcuts.js";
 import { createWindowsApps, runPowerShell, createWindowsIconService } from "../platform/windows/apps.js";
 import { startServer } from "../server.js";
+
+test("shortcut editor cancel never submits a required form", async () => {
+  const page = await readFile(new URL("../public/windows.html", import.meta.url), "utf8");
+  assert.match(page, /id="cancel-key" type="button"/);
+  assert.match(page, /\$\('cancel-key'\)\.onclick=closeKeyDialog/);
+  assert.match(page, /addEventListener\('cancel',event=>\{event\.preventDefault\(\);closeKeyDialog\(\)\}\)/);
+});
 
 test("keyboard actions validate combinations and never interpret shell text", async () => {
   assert.deepEqual(parseShortcut("Shift+Ctrl+C"), { combo: "Ctrl+Shift+C", codes: [16,17,67] });
