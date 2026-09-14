@@ -16,7 +16,7 @@ Free code signing provided by SignPath.io, certificate by SignPath Foundation, w
 
 - Committers and reviewers: GitHub users with approved write access to `eddesignerez/EzDeck`.
 - Approvers: the repository owner `eddesignerez`, or a person explicitly delegated by that owner in the SignPath project.
-- Protect `main`: require pull requests, a passing test workflow, and at least one maintainer approval.
+- Protect `main`: require pull requests, a passing test workflow and resolved conversations. When a second maintainer is available, require at least one approving review.
 - Enable two-factor authentication for every repository maintainer.
 - Keep signing credentials only in GitHub Actions secrets. They must never be committed to this repository or included in an issue, pull request, or release note.
 - Review the workflow and release artifacts before publishing.
