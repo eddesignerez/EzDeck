@@ -24,4 +24,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: node --test --test-concurrency=1 --test-force-exit --test-reporter=spec
+      - name: Run isolated test files
+        shell: bash
+        run: |
+          set -uo pipefail
+          status=0
+          for test_file in test/*.{mjs,js}; do
+            [ -f "$test_file" ] || continue
+            echo "::group::$test_file"
+            if ! timeout --signal=TERM --kill-after=10s 60s node --test --test-force-exit --test-reporter=spec "$test_file"; then
+              status=1
+            fi
+            echo "::endgroup::"
+          done
+          exit "$status"
