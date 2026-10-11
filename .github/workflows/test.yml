@@ -13,6 +13,9 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # Um handle residual de browser/servidor não pode deixar o check protegido
+    # da main preso depois que todos os testes já concluíram.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,4 +24,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: node --test --test-concurrency=1
+      - run: node --test --test-concurrency=1 --test-force-exit --test-reporter=spec
