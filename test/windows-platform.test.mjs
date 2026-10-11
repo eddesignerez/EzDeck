@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createPlatform } from "../platform/platform-contract.js";
-import { createWindowsApps, scanWindowsApps } from "../platform/windows/apps.js";
+import { createWindowsApps, readableRunningAppName, scanWindowsApps } from "../platform/windows/apps.js";
 import { createWindowsActions } from "../platform/windows/actions.js";
 import { startServer } from "../server.js";
 
@@ -63,6 +63,24 @@ test("adaptador Windows entrega o mesmo contrato que o servidor espera", async (
   const platform = createPlatform({ platform: "win32", windows: { apps, actions: { activateApp: async () => {}, openWebsite: async () => {} }, iconService: { getIconPng: async () => null } } });
   assert.deepEqual(await platform.appTools.listInstalledApps(), [{ name: "Calculator", path: "C:/Windows/System32/calc.exe", icon: true }]);
   assert.deepEqual(await platform.appTools.listAppProcesses(), [{ name: "Calculator", pid: 42 }]);
+});
+
+test("apps abertos recebem rótulo humano, inclusive para hosts genéricos do Windows", async () => {
+  const installed = [{ name: "Google Chrome", path: "C:/Program Files/Google/Chrome/Application/chrome.exe" }];
+  assert.equal(readableRunningAppName({
+    name: "chrome",
+    path: "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    description: "chrome",
+  }, installed), "Google Chrome");
+  assert.equal(readableRunningAppName({
+    name: "ApplicationFrameHost",
+    title: "Configurações",
+    description: "Application Frame Host",
+  }), "Configurações");
+  assert.equal(readableRunningAppName({
+    name: "Code",
+    description: "Visual Studio Code",
+  }), "Visual Studio Code");
 });
 
 test("servidor preserva a API do companion ao receber a plataforma Windows", async () => {
