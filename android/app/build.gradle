@@ -10,8 +10,14 @@ def releaseSigningKeys = [
     "EZDECK_RELEASE_KEY_PASSWORD"
 ]
 
+def localReleaseProperties = new Properties()
+def localReleasePropertiesFile = rootProject.file("gradle.local.properties")
+if (localReleasePropertiesFile.isFile()) {
+    localReleasePropertiesFile.withInputStream { localReleaseProperties.load(it) }
+}
+
 def releaseSigningValue = { String name ->
-    providers.gradleProperty(name).orNull ?: providers.environmentVariable(name).orNull
+    providers.gradleProperty(name).orNull ?: providers.environmentVariable(name).orNull ?: localReleaseProperties.getProperty(name)
 }
 
 def releaseSigningValues = releaseSigningKeys.collectEntries { name ->

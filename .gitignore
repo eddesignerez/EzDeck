@@ -15,7 +15,7 @@ android/build/
 android/app/build/
 android/.idea/
 android/local.properties
-android/gradle.properties
+android/gradle.local.properties
 android/app/release/
 dist/
 *.jks
