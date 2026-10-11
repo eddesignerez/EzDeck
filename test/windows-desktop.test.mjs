@@ -275,12 +275,15 @@ test("card drop swaps exact positions instead of reordering by list index", {tim
     target.dispatchEvent(new DragEvent('dragover',{bubbles:true,cancelable:true,dataTransfer}));
     target.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer}));
   }, {selector,position});
+  await page.locator('.library-card[data-name="Calculadora"]').waitFor();
+  await page.locator('.slot').first().waitFor();
   await drop('.library-card[data-name="Calculadora"]',0);
   await page.waitForFunction(()=>document.querySelectorAll('.tile').length===1);
   await fetch(`${base}/api/config/pinned`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({app:'Bloco de notas'})});
   // Alterações feitas no navegador/telefone devem chegar à janela nativa sem
   // minimizar, reabrir ou atualizar manualmente.
   await page.waitForFunction(()=>document.querySelectorAll('.tile').length===2);
+  await page.locator('.tile[data-name="Calculadora"]').waitFor();
   await drop('.tile[data-name="Calculadora"]',1);
   await page.waitForFunction(()=>[...document.querySelectorAll('.slot')].findIndex(s=>s.textContent.includes('Calculadora'))===1);
   const cfg=await (await fetch(`${base}/api/config`)).json();
