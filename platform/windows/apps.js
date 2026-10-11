@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, extname, join } from "node:path";
+import { BROWSER_WINDOWS_SCRIPT } from "./browser-windows.js";
+import { addChromeProfileApps, listChromeProfiles, matchingChromeProfileApp } from "./browser-profiles.js";
 const exec = (file, args, { input, ...options }) => new Promise((resolve, reject) => {
   const child = execFile(file, args, options, (error, stdout, stderr) => error ? reject(error) : resolve({ stdout, stderr }));
   child.stdin.on("error", () => {});
@@ -45,20 +47,45 @@ Get-StartApps|ForEach-Object{
 // O nome do processo raramente é um bom rótulo para pessoas (por exemplo,
 // ApplicationFrameHost). Coletamos metadados locais do executável para que a
 // tela remota possa mostrar o nome do aplicativo, não uma sigla técnica.
-const PROCESS_SCRIPT = String.raw`
-Get-Process | Where-Object { $_.MainWindowHandle -ne 0 } | ForEach-Object {
-  $path = try { $_.Path } catch { $null }
-  $description = try { $_.MainModule.FileVersionInfo.FileDescription } catch { $null }
-  $product = try { $_.MainModule.FileVersionInfo.ProductName } catch { $null }
-  [pscustomobject]@{
-    name = $_.ProcessName
-    pid = $_.Id
-    path = $path
-    title = $_.MainWindowTitle
-    description = $description
-    product = $product
+const PROCESS_SCRIPT = BROWSER_WINDOWS_SCRIPT + String.raw`
+$processes=@{}
+Get-Process | ForEach-Object { $processes[[int]$_.Id]=$_ }
+$metadata=@{}
+$rows=@([EzDeckBrowserWindows]::List([int[]]@($processes.Keys)) | ForEach-Object {
+  $window=$_
+  if (-not $metadata.ContainsKey($window.Pid)) {
+    $process=$processes[$window.Pid]
+    $metadata[$window.Pid]=[pscustomobject]@{
+      name=$process.ProcessName
+      pid=$process.Id
+      path=$(try { $process.Path } catch { $null })
+      description=$(try { $process.MainModule.FileVersionInfo.FileDescription } catch { $null })
+      product=$(try { $process.MainModule.FileVersionInfo.ProductName } catch { $null })
+    }
   }
-} | ConvertTo-Json -Compress`;
+  $row=$metadata[$window.Pid]
+  [pscustomobject]@{name=$row.name;pid=$row.pid;path=$row.path;title=$window.Title;description=$row.description;product=$row.product;appUserModelId=$window.AppUserModelId}
+})
+$rows | ConvertTo-Json -Compress`;
+const MENU_SHORTCUTS_SCRIPT = String.raw`
+$shell=New-Object -ComObject WScript.Shell
+$explorer=New-Object -ComObject Shell.Application
+@($args | ForEach-Object {
+  $p=$_; $target=$p; $appId=$null; $aumid=$null; $icon=$null
+  if ([IO.Path]::GetExtension($p) -eq '.lnk') {
+    try {
+      $shortcut=$shell.CreateShortcut($p); $target=$shortcut.TargetPath
+      if ($shortcut.Arguments -match '--app-id[=\s]+"?([a-p]{32})(?:"|\s|$)') {
+        $appId=$Matches[1]
+        $location=$shortcut.IconLocation -replace ',\s*-?\d+$',''
+        if ([IO.Path]::IsPathRooted($location) -and [IO.Path]::GetExtension($location) -eq '.ico' -and (Test-Path -LiteralPath $location -PathType Leaf)) { $icon=$location }
+        try { $folder=$explorer.Namespace([IO.Path]::GetDirectoryName($p)); $item=$folder.ParseName([IO.Path]::GetFileName($p)); $aumid=$item.ExtendedProperty('System.AppUserModel.ID') } catch {}
+      }
+    } catch {}
+  }
+  [pscustomobject]@{path=$p;targetPath=$target;pwaAppId=$appId;appUserModelId=$aumid;iconSource=$icon}
+}) | ConvertTo-Json -Compress
+`;
 const SHORTCUT_SCRIPT = "$shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($args[0]); [pscustomobject]@{ target = $shortcut.TargetPath } | ConvertTo-Json -Compress";
 const ICON_SCRIPT = String.raw`
 Add-Type -AssemblyName System.Drawing
@@ -96,6 +123,8 @@ public static class EzDeckShellIcon {
 '@
   }
   $icon=[EzDeckShellIcon]::Get($source)
+} elseif ($extension.Equals('.ico',[StringComparison]::OrdinalIgnoreCase)) {
+  $icon=New-Object System.Drawing.Icon -ArgumentList $source,([System.Drawing.Size]::new(256,256))
 } else {
   $icon=[System.Drawing.Icon]::ExtractAssociatedIcon($source)
 }
@@ -115,9 +144,52 @@ const GENERIC_WINDOW_HOSTS = new Set([
   "dllhost",
 ]);
 
+// Atalhos de apps/scripts diferentes podem apontar para o mesmo runtime.
+// O caminho do runtime não identifica qual deles está aberto.
+const SHARED_LAUNCHER_HOSTS = new Set([
+  "powershell",
+  "pwsh",
+  "cmd",
+  "wscript",
+  "cscript",
+  "node",
+  "python",
+  "pythonw",
+  "explorer",
+]);
+
+// Estes processos podem ter janela, mas são infraestrutura do Windows ou de
+// utilitários do sistema. Eles não representam um aplicativo que o usuário
+// consiga reabrir pelo EzDeck e ainda costumam não expor um ícone próprio.
+const NON_USER_FACING_PROCESS_KEYS = new Set([
+  "applicationframehost",
+  "phoneexperiencehost",
+  "textinputhost",
+  "systemsettings",
+  "systemsettingsbroker",
+  "powertoysquickaccess",
+  "windowssoftwaredevelopmentkit",
+  "searchhost",
+  "shellexperiencehost",
+  "startmenuexperiencehost",
+  "runtimebroker",
+  "backgroundtaskhost",
+  "taskhostw",
+]);
+
 function cleanAppLabel(value) {
   const label = String(value || "").replace(/\s+/g, " ").trim();
   return label || null;
+}
+
+function runningAppKey(value) {
+  return normalize(value).replace(/[^a-z0-9]+/g, "");
+}
+
+export function isUserFacingRunningApp(process) {
+  return ![process?.name, process?.description, process?.product]
+    .map(runningAppKey)
+    .some(key => NON_USER_FACING_PROCESS_KEYS.has(key));
 }
 
 /**
@@ -125,21 +197,37 @@ function cleanAppLabel(value) {
  * quando há descrição do executável ou entrada correspondente no Menu Iniciar.
  */
 export function readableRunningAppName(process, installedApps = []) {
+  const identity = normalize(process?.appUserModelId);
+  const pwa = identity && installedApps.find(app => app.pwaAppId && (
+    app.appUserModelId ? identity === normalize(app.appUserModelId) :
+      identity.includes(`._crx_${app.pwaAppId}`) && normalize(dirname(app.targetPath || "")) === normalize(dirname(process.path || ""))
+  ));
+  if (pwa) return pwa.name;
+  const profile = matchingChromeProfileApp(process, installedApps);
+  if (profile) return profile.name;
+  const store = identity && installedApps.find(app => app.store && normalize(app.path) === `shell:appsfolder\\${identity}`);
+  if (store) return store.name;
+  const title = cleanAppLabel(process?.title);
+  // Só reutilizamos um título quando ele é exatamente o nome de um app local.
+  // Isso corrige descrições antigas (ChatGPT com FileDescription "Codex") sem
+  // enviar títulos de documentos, abas ou conversas para o dispositivo remoto.
+  const titledApp = title && installedApps.find(app => normalize(app.name) === normalize(title));
+  if (titledApp) return titledApp.name;
+  const processName = cleanAppLabel(process?.name);
+  const isGenericHost = GENERIC_WINDOW_HOSTS.has(normalize(processName)) || SHARED_LAUNCHER_HOSTS.has(normalize(processName));
   const path = normalize(process?.path);
-  const installed = path && installedApps.find(app =>
-    path === normalize(app.targetPath || app.path)
+  const installed = !isGenericHost && path && installedApps.find(app =>
+    !app.pwaAppId && !app.browserProfileDirectory && path === normalize(app.targetPath || app.path)
   );
   if (installed?.name) return String(installed.name);
 
-  const processName = cleanAppLabel(process?.name);
-  const isGenericHost = GENERIC_WINDOW_HOSTS.has(normalize(processName));
-  const title = cleanAppLabel(process?.title);
   const description = cleanAppLabel(process?.description);
   const product = cleanAppLabel(process?.product);
 
   // Para hosts genéricos do Windows, o título da janela é a única identidade
   // visível do app hospedado (por exemplo, "Configurações").
-  if (isGenericHost && title) return title;
+  if (GENERIC_WINDOW_HOSTS.has(normalize(processName)) && title) return title;
+  if (SHARED_LAUNCHER_HOSTS.has(normalize(processName)) && normalize(title) === "ezdeck") return "EzDeck";
   return description || product || title || processName || "Aplicativo";
 }
 
@@ -199,7 +287,7 @@ export function deduplicateWindowsApps(apps) {
     const key = normalize(app.name);
     if (seen.has(key)) continue;
     seen.add(key);
-    result.push({ name: app.name, path: app.path, icon: app.icon !== false, ...(app.targetPath ? { targetPath: app.targetPath } : {}), ...(app.iconSource ? { iconSource: app.iconSource } : {}), ...(app.store ? { store: true } : {}) });
+    result.push({ name: app.name, path: app.path, icon: app.icon !== false, ...(app.displayName ? { displayName: app.displayName } : {}), ...(app.targetPath ? { targetPath: app.targetPath } : {}), ...(app.iconSource ? { iconSource: app.iconSource } : {}), ...(app.store ? { store: true } : {}), ...(app.pwaAppId ? { pwaAppId: app.pwaAppId, ...(app.appUserModelId ? { appUserModelId: app.appUserModelId } : {}) } : {}), ...(app.browserProfileDirectory ? { browserProfileDirectory: app.browserProfileDirectory } : {}) });
   }
   return result.sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }));
 }
@@ -217,13 +305,12 @@ export async function scanWindowsApps(deps = {}) {
     const paths = (await Promise.all(directories.map(directory => discover(directory, deps)))).flat();
     // Resolve the complete menu in one process. Launch the .lnk itself to
     // preserve installer arguments, working directory and shell activation.
-    const script = "$shell=New-Object -ComObject WScript.Shell; @($args | ForEach-Object { $p=$_; $target=$p; if ([IO.Path]::GetExtension($p) -eq '.lnk') { try { $target=$shell.CreateShortcut($p).TargetPath } catch {} }; [pscustomobject]@{ path=$p; targetPath=$target } }) | ConvertTo-Json -Compress";
     // A resolução dos atalhos e a leitura da Microsoft Store são independentes.
     // Rodá-las em paralelo reduz visivelmente a primeira abertura do EzDeck.
-    const targetsTask = (paths.length ? runPowerShell(script, paths, deps.runPowerShell) : Promise.resolve({ stdout: "[]" }))
+    const targetsTask = (paths.length ? runPowerShell(MENU_SHORTCUTS_SCRIPT, paths, deps.runPowerShell) : Promise.resolve({ stdout: "[]" }))
       .then(output => {
         const parsed = JSON.parse(output.stdout || "[]");
-        return new Map((Array.isArray(parsed) ? parsed : [parsed]).map(item => [item.path, item.targetPath]));
+        return new Map((Array.isArray(parsed) ? parsed : [parsed]).map(item => [item.path, item]));
       })
       .catch(() => new Map());
     const storeApps = [];
@@ -237,15 +324,18 @@ export async function scanWindowsApps(deps = {}) {
         if (item?.name && item?.appId) storeApps.push({ name: String(item.name), path: `shell:AppsFolder\\${item.appId}`, icon: true, ...(item.iconPath ? { iconSource: String(item.iconPath) } : {}), store: true });
       }
     } catch { /* Get-StartApps may be unavailable on older Windows editions. */ }
-    const menuApps = paths.map(path => ({ name: appNameFromShortcut(path), path, targetPath: targets.get(path) }));
+    const menuApps = paths.map(path => ({ name: appNameFromShortcut(path), ...targets.get(path), path }));
     // Pacotes com asset oficial vêm primeiro. Para entradas sem asset (muitos
     // programas Win32 também aparecem em Get-StartApps), o .lnk é uma fonte de
     // ícone melhor; a identidade AppsFolder fica apenas como último recurso.
-    return deduplicateWindowsApps([
+    const inventory = deduplicateWindowsApps([
       ...storeApps.filter(app => app.iconSource),
       ...menuApps,
       ...storeApps.filter(app => !app.iconSource),
     ]);
+    const chromeInstalled = inventory.some(app => /[\\/]Google[\\/]Chrome[\\/]Application[\\/]chrome\.exe$/i.test(app.targetPath || app.path));
+    const profiles = chromeInstalled ? await (deps.listChromeProfiles || (() => listChromeProfiles({ env: deps.env })))() : [];
+    return deduplicateWindowsApps(addChromeProfileApps(inventory, profiles));
   }
   for (const directory of directories) {
     const shortcuts = await discover(directory, deps);
@@ -270,7 +360,15 @@ export function createWindowsApps(deps = {}) {
       const values = Array.isArray(parsed) ? parsed : (parsed ? [parsed] : []);
       return values
         .filter(item => item && Number.isInteger(item.pid) && item.pid > 0 && item.name)
-        .map(item => ({ name: String(item.name), pid: item.pid, path: item.path || undefined }));
+        .map(item => ({
+          name: String(item.name),
+          pid: item.pid,
+          path: item.path || undefined,
+          title: cleanAppLabel(item.title) || undefined,
+          description: cleanAppLabel(item.description) || undefined,
+          product: cleanAppLabel(item.product) || undefined,
+          ...(item.appUserModelId ? { appUserModelId: String(item.appUserModelId) } : {}),
+        }));
     })
     .catch(() => []));
   let cached = null;
@@ -325,9 +423,11 @@ export function createWindowsApps(deps = {}) {
     },
     async listAppProcesses() {
       const [processes, installed] = await Promise.all([listProcesses(), api.listInstalledApps()]);
-      return processes.map(item => {
-        const { title, description, product, ...publicProcess } = item;
-        return { ...publicProcess, name: readableRunningAppName(item, installed) };
+      return processes.filter(isUserFacingRunningApp).map(item => {
+        const { title, description, product, appUserModelId, ...publicProcess } = item;
+        const name = readableRunningAppName(item, installed);
+        const displayName = installed.find(app => app.name === name)?.displayName;
+        return { ...publicProcess, name, ...(displayName ? { displayName } : {}) };
       });
     },
   };
@@ -338,7 +438,7 @@ export async function convertWindowsIconToPng(sourcePath, outputPath, deps = {})
   await runPowerShell(ICON_SCRIPT, [sourcePath, outputPath], deps.runPowerShell);
 }
 
-export function createWindowsIconService({ listInstalledApps, convertIcon = convertWindowsIconToPng, ...deps } = {}) {
+export function createWindowsIconService({ listInstalledApps, listAppProcesses, convertIcon = convertWindowsIconToPng, ...deps } = {}) {
   const memory = new Map();
   const inflight = new Map();
   const waiting = [];
@@ -362,7 +462,13 @@ export function createWindowsIconService({ listInstalledApps, convertIcon = conv
   }
   async function extract(name, key) {
       const apps = await listInstalledApps();
-      const app = apps.find(item => normalize(item.name) === key);
+      let app = apps.find(item => normalize(item.name) === key);
+      // Explorer and portable apps need not have a Start Menu shortcut. Only
+      // use an executable discovered locally for a user-facing open window.
+      if (!app && listAppProcesses) {
+        const running = await listAppProcesses();
+        app = running.find(item => normalize(item.name) === key && item.path);
+      }
       if (!app || !app.path || app.icon === false) return null;
       const cachedFile = await diskCachePath(app, key);
       if (cachedFile) {

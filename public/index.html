@@ -84,7 +84,7 @@
     position: fixed; inset:0;
     padding: 0 14px;
     overflow: hidden;
-    touch-action: none;
+    touch-action: pan-x;
   }
   .screen{
     position: absolute; top:0; left:0; right:0; bottom:0;
@@ -132,20 +132,20 @@
     overflow: hidden;
   }
   .add-apps{
-    position:absolute; right:18px; bottom:22px; z-index:3;
+    position:absolute;
+    top:calc(env(safe-area-inset-top, 0px) + 12px);
+    right:clamp(12px, 4vw, 20px);
+    bottom:auto;
+    transform:translateY(calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 66px));
+    z-index:4;
     display:flex; align-items:center; gap:7px; min-height:32px; padding:0 13px;
     border:1px solid rgba(255,255,255,.24); border-radius:17px; cursor:pointer;
     color:#fff; font:700 13px/1 system-ui,-apple-system,"Segoe UI",sans-serif;
     background:rgba(10,132,255,.92); box-shadow:0 9px 24px rgba(0,0,0,.28);
   }
-  .add-apps:active{ transform:scale(.97); }
-  /* Cada botão pertence à sua tela para acompanhar o mesmo deslize vertical. */
-  #screenRecents .add-apps{
-    top:calc(env(safe-area-inset-top, 0px) + 12px);
-    right:clamp(12px, 4vw, 20px);
-    bottom:auto;
-    z-index:3;
-  }
+  .add-apps:active{ opacity:.9; }
+  /* Um botão acompanha o gesto entre a posição inferior da tela 1 e o
+     canto superior da tela 2, sem duplicar nem cobrir os cartões. */
   .launchpad{
     flex: 1 1 auto; min-height: 0;
     display: flex;
@@ -408,11 +408,15 @@
   .vdots .d.on{ background: #fff; height: 14px; width: 6px; border-radius: 3px; }
 
   /* ---- tela 2: dock horizontal organizado (abertos | fixados) ---- */
+  #recentsContent{
+    flex:1 1 auto; min-height:0; min-width:0;
+    display:flex; flex-direction:column;
+  }
   .recents{
-    flex: 1 1 auto; min-height: 0; height: 100%;
+    flex: 1 1 auto; min-height: 0; min-width: 0; width: 100%;
     display: flex; flex-direction: column;
     align-items: stretch; justify-content: space-between;
-    padding: env(safe-area-inset-top, 0px) 0 calc(env(safe-area-inset-bottom, 0px) + 8px);
+    padding: env(safe-area-inset-top, 0px) 0 calc(env(safe-area-inset-bottom, 0px) + 12px);
     box-sizing: border-box;
   }
   .thead{
@@ -420,7 +424,7 @@
     width: 100%;
     display: flex; flex-direction: row; align-items: baseline;
     justify-content: center;
-    padding: 16px 20px 0;
+    padding: 16px 112px 0;
     box-sizing: border-box;
   }
   .ttitle{
@@ -431,6 +435,9 @@
     pointer-events: none;
     text-align: center;
     width: 100%;
+  }
+  @media (max-width: 520px){
+    .thead{ padding:54px 20px 0; }
   }
   .rstage{
     flex: 1 1 auto; min-height: 0;
@@ -478,7 +485,11 @@
     cursor: pointer;
     user-select: none; -webkit-user-select: none;
     -webkit-touch-callout: none;
+    touch-action: none;
   }
+  .dcard.is-reordering{ opacity:.25; }
+  .recents-drag-ghost{ position:fixed; z-index:50; pointer-events:none; margin:0; will-change:transform; filter:drop-shadow(0 8px 14px rgba(0,0,0,.25)); }
+  .dcard:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; border-radius:24%; }
   .dcard .aglass{
     flex: 0 0 auto;
     width: var(--app-tile);
@@ -518,8 +529,20 @@
     text-align: center;
     font-size: 12px;
     color: rgba(255,255,255,.35);
-    padding: 8px 20px 0;
+    padding: 12px 20px 0;
     pointer-events: none;
+  }
+  .app-version{
+    position:absolute;
+    right:clamp(12px, 3vw, 24px);
+    bottom:calc(env(safe-area-inset-bottom, 0px) + 6px);
+    z-index:4;
+    min-height:1em;
+    color:rgba(255,255,255,.54);
+    font:600 11px/1 system-ui,-apple-system,"Segoe UI",sans-serif;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:.04em;
+    pointer-events:none;
   }
   .robscard{
     flex: 0 0 auto; display: flex; align-items: center;
@@ -895,12 +918,12 @@
           <div class="page-actions"><button class="add-page" id="removePage" type="button" data-i18n="page.remove" hidden>− Página</button><button class="add-page" id="addPage" type="button" data-i18n="page.add">＋ Página</button></div>
         </div>
       </div>
-      <button class="add-apps" id="addApps" type="button" data-i18n="dock.addApps">＋ APP</button>
     </section>
     <section class="screen" id="screenRecents">
       <div id="recentsContent"></div>
-      <button class="add-apps" id="addAppsRecents" type="button" data-i18n="dock.addApps">＋ APP</button>
     </section>
+    <button class="add-apps" id="addApps" type="button" data-i18n="dock.addApps">＋ APP</button>
+    <output class="app-version" id="appVersion" aria-label="Versão do aplicativo"></output>
   </div>
 </main>
 <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ativar modo escuro" title="Ativar modo escuro">☾</button>
@@ -1789,14 +1812,15 @@
     tile.appendChild(glass);
     const nm = document.createElement("span");
     nm.className = "aname";
-    nm.textContent = a.type === "website" ? a.title : a.name;
+    const label = a.type === "website" ? a.title : appDisplayName(state.installed.find(app => app.name === a.name) || a);
+    nm.textContent = label;
     const st = document.createElement("span");
     st.className = "astatus";
     st.textContent = a.type === "app" && isRunning(a.name) ? t("dock.opened") : "";
     if (a.type === "app" && isRunning(a.name)) st.classList.add("on");
     tile.appendChild(nm);
     tile.appendChild(st);
-    makeBtn(tile, a.type === "website" ? a.title : a.name, function(){ activatePiece(a); });
+    makeBtn(tile, label, function(){ activatePiece(a); });
     bindHold(tile, tileLong);
     return tile;
   }
@@ -2009,16 +2033,53 @@
 
   // ---------- rendering: tela 2 — dock organizado (abertos | fixados) ----------
   let deckPid = null;
+  const RECENTS_ORDER_KEY = "ezdeck-recents-order-v1";
+  let recentsOrder = [];
+  try {
+    const savedOrder = JSON.parse(localStorage.getItem(RECENTS_ORDER_KEY) || "[]");
+    if (Array.isArray(savedOrder)) recentsOrder = Array.from(new Set(savedOrder.filter(name => typeof name === "string"))).slice(0, 200);
+  } catch (e) {}
+  function rememberRecentsOrder(deck){
+    const visible = Array.from(deck.querySelectorAll(".dcard"), card => card.dataset.name);
+    recentsOrder = visible.concat(recentsOrder.filter(name => visible.indexOf(name) === -1)).slice(0, 200);
+    try { localStorage.setItem(RECENTS_ORDER_KEY, JSON.stringify(recentsOrder)); } catch (e) {}
+  }
+  function appDisplayName(app){
+    if (app.displayName) return app.displayName;
+    // Compatibilidade visual com o host anterior, que já identificava perfis.
+    const profile = /^Google Chrome [—–-] (.+)$/.exec(app.name || "");
+    return profile ? profile[1] : app.name;
+  }
+
+  // Defesa no cliente para quem atualiza apenas o APK: versões anteriores do
+  // host ainda podem enviar nomes técnicos de janelas do Windows.
+  const SYSTEM_RUNNING_APP_KEYS = new Set([
+    "applicationframehost", "phoneexperiencehost", "textinputhost", "systemsettings",
+    "systemsettingsbroker", "powertoysquickaccess",
+    "windowssoftwaredevelopmentkit", "searchhost", "shellexperiencehost",
+    "startmenuexperiencehost", "runtimebroker", "backgroundtaskhost", "taskhostw"
+  ]);
+  function runningAppKey(value){
+    return String(value || "").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, "");
+  }
+  function isVisibleRunningApp(app){
+    return ![app && app.name, app && app.displayName]
+      .map(runningAppKey)
+      .some(key => SYSTEM_RUNNING_APP_KEYS.has(key));
+  }
 
   function deckQueue(){
     const q = [];
-    const seen = {};
+    const seen = new Set();
     state.running.forEach(function(a){
       if (a.type && a.type !== "Foreground") return;
-      if (seen[a.name]) return;
-      seen[a.name] = true;
-      q.push({ name: a.name, label: a.displayName || a.name });
+      if (!isVisibleRunningApp(a)) return;
+      if (seen.has(a.name)) return;
+      seen.add(a.name);
+      q.push({ name: a.name, label: appDisplayName(a) });
     });
+    const ranks = new Map(recentsOrder.map((name, index) => [name, index]));
+    q.sort((a, b) => (ranks.get(a.name) ?? recentsOrder.length) - (ranks.get(b.name) ?? recentsOrder.length));
     return q;
   }
 
@@ -2048,7 +2109,17 @@
     nm.className = "dname";
     nm.textContent = app.label;
     c.appendChild(nm);
-    makeBtn(c, name, function(el){ activateApp(el.dataset.name); });
+    makeBtn(c, app.label, function(el){ activateApp(el.dataset.name); });
+    c.setAttribute("aria-keyshortcuts", "Alt+ArrowLeft Alt+ArrowRight");
+    c.addEventListener("keydown", function(e){
+      if (!e.altKey || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+      e.preventDefault(); e.stopPropagation();
+      const target = e.key === "ArrowLeft" ? c.previousElementSibling : c.nextElementSibling;
+      if (!target) return;
+      c.parentNode.insertBefore(c, e.key === "ArrowLeft" ? target : target.nextElementSibling);
+      rememberRecentsOrder(c.closest(".deck"));
+      c.scrollIntoView({ block:"nearest", inline:"nearest" });
+    });
     return c;
   }
 
@@ -2085,33 +2156,143 @@
     const deck = $("deck");
     if (!deck || deck.dataset.bound) return;
     deck.dataset.bound = "1";
-    let deckStartX = 0;
-    let deckStartY = 0;
-    let deckSwiping = false;
+    let gesture = null, inertia = null, autoScroll = null;
+    const layoutAnimations = new Map();
+    function stopMotion(){
+      if (inertia) cancelAnimationFrame(inertia);
+      if (autoScroll) cancelAnimationFrame(autoScroll);
+      inertia = autoScroll = null;
+    }
+    function moveCard(x){
+      const g = gesture;
+      if (!g || g.mode !== "drag") return;
+      g.ghost.style.transform = "translate3d(" + (x - g.x) + "px," + (g.lastY - g.y) + "px,0)";
+      const cards = Array.from(g.card.parentNode.children);
+      // As posições de destino são fixas. Medir os vizinhos durante o FLIP
+      // fazia o mesmo toque trocar a ordem de volta enquanto eles deslizavam.
+      const center = x + g.centerOffset + deck.scrollLeft;
+      const targetIndex = g.slots.reduce((nearest, slot, index) =>
+        Math.abs(center - slot) < Math.abs(center - g.slots[nearest]) ? index : nearest, 0);
+      const target = cards[targetIndex];
+      if (target === g.card) return;
+      const before = new Map(cards.map(card => [card, card.getBoundingClientRect().left]));
+      // Reiniciar a partir da posição visual atual, nunca empilhar animações.
+      layoutAnimations.forEach(animation => animation.cancel());
+      layoutAnimations.clear();
+      const movingRight = cards.indexOf(target) > cards.indexOf(g.card);
+      g.card.parentNode.insertBefore(g.card, movingRight ? target.nextElementSibling : target);
+      if (!matchMedia("(prefers-reduced-motion: reduce)").matches) cards.forEach(card => {
+        if (card === g.card || !card.animate) return;
+        const dx = before.get(card) - card.getBoundingClientRect().left;
+        if (dx){
+          const animation = card.animate([{ transform:"translateX(" + dx + "px)" }, { transform:"translateX(0)" }], { duration:160, easing:"cubic-bezier(0,0,.2,1)" });
+          layoutAnimations.set(card, animation);
+          animation.onfinish = function(){ if (layoutAnimations.get(card) === animation) layoutAnimations.delete(card); };
+        }
+      });
+    }
+    function scrollAtEdge(){
+      if (!gesture || gesture.mode !== "drag") return;
+      const box = deck.getBoundingClientRect(), x = gesture.lastX;
+      const edge = Math.min(64, box.width / 5);
+      const step = x < box.left + edge ? -Math.min(12, (box.left + edge - x) / 5) :
+        x > box.right - edge ? Math.min(12, (x - box.right + edge) / 5) : 0;
+      if (step){ deck.scrollLeft += step; moveCard(x); }
+      autoScroll = requestAnimationFrame(scrollAtEdge);
+    }
+    function beginReorder(){
+      const g = gesture;
+      if (!g || g.mode !== "pending" || !g.card) return;
+      g.mode = "drag";
+      g.order = Array.from(g.card.parentNode.children);
+      const box = g.card.getBoundingClientRect();
+      g.centerOffset = box.left + box.width / 2 - g.x;
+      g.slots = g.order.map(card => {
+        const rect = card.getBoundingClientRect();
+        return rect.left + rect.width / 2 + deck.scrollLeft;
+      });
+      g.ghost = g.card.cloneNode(true);
+      g.ghost.classList.add("recents-drag-ghost");
+      g.ghost.setAttribute("aria-hidden", "true");
+      g.ghost.removeAttribute("role"); g.ghost.removeAttribute("tabindex");
+      Object.assign(g.ghost.style, { left:box.left + "px", top:box.top + "px", width:box.width + "px", height:box.height + "px" });
+      document.body.appendChild(g.ghost);
+      g.card.classList.add("is-reordering");
+      document.body.classList.add("swiping");
+      suppressClickUntil = Date.now() + 700;
+      deck.setPointerCapture(g.pid);
+      triggerHaptic();
+      scrollAtEdge();
+    }
     deck.addEventListener("pointerdown", function(e){
       if (e.pointerType === "mouse" && e.button !== 0) return;
-      deckStartX = e.clientX;
-      deckStartY = e.clientY;
-      deckSwiping = false;
+      if (gesture) return;
+      stopMotion();
+      const card = e.target.closest(".dcard");
+      gesture = { pid:e.pointerId, x:e.clientX, y:e.clientY, lastX:e.clientX, lastY:e.clientY, time:e.timeStamp,
+        left:deck.scrollLeft, speed:0, card, mode:"pending", timer:card ? setTimeout(beginReorder, 275) : null };
       deckPid = e.pointerId;
     });
     deck.addEventListener("pointermove", function(e){
-      if (deckPid !== e.pointerId || deckSwiping) return;
-      if (Math.hypot(e.clientX - deckStartX, e.clientY - deckStartY) < 4) return;
-      deckSwiping = true;
-      document.body.classList.add("swiping");
-    });
+      const g = gesture;
+      if (!g || g.pid !== e.pointerId) return;
+      const dx = e.clientX - g.x, dy = e.clientY - g.y;
+      if (g.mode === "pending" && Math.hypot(dx, dy) > 8){
+        clearTimeout(g.timer);
+        g.mode = Math.abs(dx) > Math.abs(dy) * 1.15 ? "scroll" : "vertical";
+        if (g.mode === "scroll" && g.card){ deck.setPointerCapture(g.pid); document.body.classList.add("swiping"); }
+      }
+      const dt = e.timeStamp - g.time;
+      if (dt > 0) g.speed = .4 * g.speed + .6 * (g.lastX - e.clientX) / dt;
+      g.lastX = e.clientX; g.lastY = e.clientY; g.time = e.timeStamp;
+      if (g.mode === "drag"){
+        e.preventDefault(); e.stopPropagation(); moveCard(e.clientX);
+      } else if (g.mode === "scroll" && g.card){
+        e.preventDefault(); e.stopPropagation(); deck.scrollLeft = g.left - dx;
+        suppressClickUntil = Date.now() + 500;
+      }
+    }, { passive:false });
     function endDeck(e){
-      if (deckPid !== e.pointerId) return;
+      const g = gesture;
+      if (!g || (e.pointerId != null && g.pid !== e.pointerId)) return;
+      clearTimeout(g.timer); stopMotion(); gesture = null;
+      const cancel = e.type !== "pointerup";
+      if (g.mode === "drag"){
+        if (cancel){
+          layoutAnimations.forEach(animation => animation.cancel());
+          layoutAnimations.clear();
+          g.order.forEach(card => g.card.parentNode.appendChild(card));
+        }
+        else rememberRecentsOrder(deck);
+        g.card.classList.remove("is-reordering"); g.ghost.remove();
+        suppressClickUntil = Date.now() + 700;
+      }
+      if (g.mode === "drag" || g.mode === "scroll"){
+        document.body.classList.remove("swiping");
+        suppressClickUntil = Date.now() + 700;
+      }
+      if (deck.hasPointerCapture(g.pid)) deck.releasePointerCapture(g.pid);
       deckPid = null;
-      if (deckSwiping) document.body.classList.remove("swiping");
-      deckSwiping = false;
+      if (!cancel && g.mode === "scroll" && g.card && Math.abs(g.speed) > .1){
+        let velocity = Math.max(-2.5, Math.min(2.5, g.speed)), last = performance.now();
+        function coast(now){
+          const dt = Math.min(now - last, 32); last = now;
+          const before = deck.scrollLeft; deck.scrollLeft += velocity * dt;
+          velocity *= Math.pow(.92, dt / 16);
+          if (deck.isConnected && Math.abs(velocity) > .05 && deck.scrollLeft !== before) inertia = requestAnimationFrame(coast);
+          else inertia = null;
+        }
+        inertia = requestAnimationFrame(coast);
+      }
+      window.removeEventListener("pointerup", endDeck, true);
+      window.removeEventListener("pointercancel", endDeck, true);
+      window.removeEventListener("blur", endDeck);
       flushPendingRecents();
     }
-    deck.addEventListener("pointerup", endDeck);
-    deck.addEventListener("pointercancel", endDeck);
-    deck.addEventListener("pointerleave", function(){
-      if (deckPid == null) document.body.classList.remove("swiping");
+    deck.addEventListener("pointerdown", function(){
+      window.addEventListener("pointerup", endDeck, true);
+      window.addEventListener("pointercancel", endDeck, true);
+      window.addEventListener("blur", endDeck);
     });
   }
 
@@ -2214,7 +2395,7 @@
       }
       const nm = document.createElement("div");
       nm.style.cssText = "flex:1;min-width:0;font-size:14px;font-weight:600";
-      nm.textContent = a.name;
+      nm.textContent = appDisplayName(a);
       row.appendChild(nm);
       const pin = document.createElement("span");
       pin.className = "pin";
@@ -2223,7 +2404,7 @@
       if (limitReached) pin.style.color = "var(--amber)";
       row.appendChild(pin);
       let saving = false;
-      makeBtn(row, a.name + (pinned ? ", " + t("dock.pinnedLabel") : ", " + t("dock.pin")), async function(el){
+      makeBtn(row, appDisplayName(a) + (pinned ? ", " + t("dock.pinnedLabel") : ", " + t("dock.pin")), async function(el){
         if (saving) return;
         saving = true;
         if (state.pinned.indexOf(el.dataset.name) !== -1) await unpinApp(el.dataset.name);
@@ -2267,11 +2448,11 @@
   });
 
   async function openAppsPicker(){
-    const buttons = [$("addApps"), $("addAppsRecents")].filter(Boolean);
-    buttons.forEach(function(button){
+    const button = $("addApps");
+    if (button){
       button.disabled = true;
       button.textContent = t("dock.loading");
-    });
+    }
     try {
       const response = await req("/api/apps/installed", { timeout: 20000 });
       if (response.status !== 200 || !response.data || !Array.isArray(response.data.apps)) throw new Error("inventory");
@@ -2281,15 +2462,13 @@
     } catch (error) {
       toast(t("dock.loadAppsFailed"), "err");
     } finally {
-      buttons.forEach(function(button){
+      if (button){
         button.disabled = false;
         button.textContent = t("dock.addApps");
-      });
+      }
     }
   }
-  [$("addApps"), $("addAppsRecents")].filter(Boolean).forEach(function(button){
-    button.addEventListener("click", openAppsPicker);
-  });
+  $("addApps").addEventListener("click", openAppsPicker);
 
   // ---------- OBS (drawer) ----------
   function renderObs(){
@@ -2591,6 +2770,7 @@
       const warmed = new Set();
       running.forEach(function(a){
         if (a.type && a.type !== "Foreground") return;
+        if (!isVisibleRunningApp(a)) return;
         if (warmed.has(a.name)) return;
         warmed.add(a.name);
         primeIcon(a.name);
@@ -2668,6 +2848,7 @@
         if (Array.isArray(r.data && (r.data.pieces || r.data.pinned)) && Array.isArray(r.data && r.data.running)){
           ok = true;
           maybeReloadForUi(r.data.v);
+          setAppVersion(r.data.v);
           applyAppsPayload(r.data.pieces || r.data.pinned, r.data.pinned, r.data.running, r.data.limits, r.data.revision, r.data.pageCount, r.data.locale);
         }
       }
@@ -2783,6 +2964,10 @@
     }
     function applyDrag(dy){
       const d = rubberDy(dy);
+      const progress = state.screen === "apps" ? -d / h() : 1 - d / h();
+      const addApps = $("addApps");
+      if (addApps) addApps.style.transition = screenApps ? screenApps.style.transition : "";
+      positionAddApps(progress);
       if (state.screen === "apps"){
         if (screenApps) screenApps.style.transform = "translate3d(0, " + d + "px, 0)";
         if (screenRecents) screenRecents.style.transform = "translate3d(0, " + (d + h()) + "px, 0)";
@@ -2793,6 +2978,9 @@
     }
     function clearDrag(){
       const recentsActive = document.body.classList.contains("is-recents");
+      const addApps = $("addApps");
+      if (addApps) addApps.style.transition = "";
+      positionAddApps(recentsActive ? 1 : 0);
       if (screenApps){
         screenApps.style.transform = recentsActive ? "translate3d(0, -100%, 0)" : "translate3d(0, 0, 0)";
         screenApps.style.transition = "";
@@ -2801,6 +2989,16 @@
         screenRecents.style.transform = recentsActive ? "translate3d(0, 0, 0)" : "translate3d(0, 100%, 0)";
         screenRecents.style.transition = "";
       }
+    }
+    function positionAddApps(progress){
+      const button = $("addApps");
+      if (!button) return;
+      const top = parseFloat(getComputedStyle(button).top) || 12;
+      const recents = $("recentsContent").firstElementChild;
+      const safeBottom = recents ? Math.max(0, (parseFloat(getComputedStyle(recents).paddingBottom) || 12) - 12) : 0;
+      const distance = Math.max(0, h() - top - button.offsetHeight - safeBottom - 22);
+      const p = Math.min(1, Math.max(0, progress));
+      button.style.transform = "translate3d(0, " + (distance * (1 - p)) + "px, 0)";
     }
     let swipeClearRaf = null;
     function setLayer(on, axis){
@@ -3276,6 +3474,7 @@
       window.visualViewport.addEventListener("resize", reAnchor);
       window.visualViewport.addEventListener("scroll", reAnchor);
     }
+    clearDrag();
   }
 
   renderVDots();
@@ -3288,6 +3487,30 @@
   });
 
   // ---------- aviso de atualização do Android ----------
+  function setAppVersion(value){
+    const version = String(value || "").trim().replace(/^v/i, "");
+    if (!/^\d+(?:\.\d+)+$/.test(version)) return;
+    const target = $("appVersion");
+    if (target) target.textContent = version;
+  }
+  function showAppVersion(){
+    // No APK, a bridge nativa é a fonte da versão realmente instalada.
+    try {
+      const android = window.EzDeckAndroid;
+      const installed = android && typeof android.appVersion === "function"
+        ? String(android.appVersion() || "").trim()
+        : "";
+      if (installed){
+        setAppVersion(installed);
+        return;
+      }
+    } catch (err) {}
+    // No PWA, usa a versão local declarada pelo servidor, sem consultar GitHub.
+    fetch("/api/version", { cache: "no-store" })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(payload){ setAppVersion(payload && payload.local && (payload.local.apkVersion || payload.local.tag)); })
+      .catch(function(){});
+  }
   function cmpVer(a, b){
     const pa = String(a || "").replace(/^v/, "").split(".").map(n => parseInt(n, 10) || 0);
     const pb = String(b || "").replace(/^v/, "").split(".").map(n => parseInt(n, 10) || 0);
@@ -3363,6 +3586,7 @@
   // boot real depende do login (cookie válido) — 401 reabre a wall
   function boot(){
     requestScreenWakeLock();
+    showAppVersion();
     connectStatusWs();
     loadApps();
     loadInstalled();
