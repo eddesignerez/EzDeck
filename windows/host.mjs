@@ -52,6 +52,7 @@ platform.actions.activateApp = async (action) => {
 };
 appIconService = createWindowsIconService({
   listInstalledApps: platform.appTools.listInstalledApps,
+  listAppProcesses: platform.appTools.listAppProcesses,
   cacheDir: join(directory, "icon-cache"),
 });
 platform.iconService = { getIconPng: async name => (await custom.getIcon(name)) || appIconService.getIconPng(name) };

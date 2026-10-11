@@ -7,6 +7,6 @@ export function createPlatform({ windows = {} } = {}) {
   return {
     appTools: apps,
     actions: windows.actions || createWindowsActions({ listInstalledApps: apps.listInstalledApps, run: windows.runPowerShell }),
-    iconService: windows.iconService || createWindowsIconService({ listInstalledApps: apps.listInstalledApps, convertIcon: windows.convertIcon, runPowerShell: windows.runPowerShell }),
+    iconService: windows.iconService || createWindowsIconService({ listInstalledApps: apps.listInstalledApps, listAppProcesses: apps.listAppProcesses, convertIcon: windows.convertIcon, runPowerShell: windows.runPowerShell }),
   };
 }

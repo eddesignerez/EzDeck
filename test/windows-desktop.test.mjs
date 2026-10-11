@@ -63,6 +63,28 @@ test("Windows icon cache survives a full EzDeck restart", async (t) => {
   assert.equal(conversions, 1);
 });
 
+test("ícone PWA vem do ICO instalado, nunca do executável compartilhado do navegador", async () => {
+  const icons = createWindowsIconService({ listInstalledApps: async () => [
+    { name: "Keep", path: "C:/Menu/Keep.lnk", targetPath: "C:/Chrome/chrome_proxy.exe", iconSource: "C:/Icons/Keep.ico" },
+    { name: "Freepik", path: "C:/Menu/Freepik.lnk", targetPath: "C:/Chrome/chrome_proxy.exe", iconSource: "C:/Icons/Freepik.ico" },
+  ], convertIcon: async (source, output) => { await writeFile(output, source); } });
+  assert.equal((await icons.getIconPng("Keep")).toString(), "C:/Icons/Keep.ico");
+  assert.equal((await icons.getIconPng("Freepik")).toString(), "C:/Icons/Freepik.ico");
+});
+
+test("Explorer sem atalho usa ícone do processo local, nunca caminho recebido como nome", async () => {
+  const sources = [];
+  const icons = createWindowsIconService({ listInstalledApps: async () => [],
+    listAppProcesses: async () => [{ name:"Windows Explorer", pid:42, path:"C:/Windows/explorer.exe" }],
+    convertIcon: async (source, output) => { sources.push(source); await writeFile(output, source); } });
+  assert.equal((await icons.getIconPng("Windows Explorer")).toString(), "C:/Windows/explorer.exe");
+  assert.equal(await icons.getIconPng("C:/arbitrary.exe"), null);
+  assert.equal(await icons.getIconPng("SkillWatch Tunnel"), null);
+  assert.deepEqual(sources, ["C:/Windows/explorer.exe"]);
+  const host = await readFile(new URL("../windows/host.mjs", import.meta.url), "utf8");
+  assert.match(host, /appIconService = createWindowsIconService\(\{\s*listInstalledApps: platform\.appTools\.listInstalledApps,\s*listAppProcesses: platform\.appTools\.listAppProcesses,/);
+});
+
 test("Windows app inventory opens from disk and refreshes in background", async (t) => {
   const directory = await mkdtemp(join(tmpdir(), "ezdeck-persistent-apps-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
@@ -183,7 +205,7 @@ test("Windows refresh endpoint refreshes the local inventory and is host-only", 
   assert.equal((await fetch(`${base}/api/windows/sync`,{method:"POST",headers:{"x-ezdeck-host":"refresh-host-token-abcdefghijklmnopqrstuvwxyz"},body:"{}"})).status,200);
 });
 
-test("Adicionar apps works on both companion screens and persists selection", {timeout:20000}, async(t)=>{
+test("Adicionar apps funciona nas duas telas pelo único botão e persiste a seleção", {timeout:20000}, async(t)=>{
   const {base} = await fixture(t);
   const browser=await chromium.launch({headless:true, channel:process.platform === "win32" ? "msedge" : undefined});
   t.after(()=>browser.close());
@@ -198,9 +220,9 @@ test("Adicionar apps works on both companion screens and persists selection", {t
   const cfg=await (await fetch(`${base}/api/config`)).json();
   assert.deepEqual(cfg.config.pinned,["Calculadora"]);
   await page.locator("#sheet .btn").click();
-  // Simulate the recents layout that previously hid the button under a screen.
-  await page.evaluate(()=>document.body.classList.add("is-recents"));
-  await page.locator("#addAppsRecents").click();
+  await page.locator("#vdots .d").nth(1).click();
+  await page.waitForFunction(()=>document.body.classList.contains("is-recents") && !document.body.classList.contains("swiping"));
+  await page.locator("#addApps").click();
   await page.locator("#sheet .srow",{hasText:"Calculadora"}).click();
   await page.waitForFunction(()=>!document.querySelector("#sheet .srow .pin")?.textContent.includes("✓"));
   assert.deepEqual((await (await fetch(`${base}/api/config`)).json()).config.pinned,[]);
