@@ -200,7 +200,7 @@ test("Adicionar apps works on both companion screens and persists selection", {t
   await page.locator("#sheet .btn").click();
   // Simulate the recents layout that previously hid the button under a screen.
   await page.evaluate(()=>document.body.classList.add("is-recents"));
-  await page.locator("#addApps").click();
+  await page.locator("#addAppsRecents").click();
   await page.locator("#sheet .srow",{hasText:"Calculadora"}).click();
   await page.waitForFunction(()=>!document.querySelector("#sheet .srow .pin")?.textContent.includes("✓"));
   assert.deepEqual((await (await fetch(`${base}/api/config`)).json()).config.pinned,[]);
