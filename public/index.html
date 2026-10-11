@@ -132,25 +132,20 @@
     overflow: hidden;
   }
   .add-apps{
-    position:fixed; right:18px; bottom:22px; z-index:35;
+    position:absolute; right:18px; bottom:22px; z-index:3;
     display:flex; align-items:center; gap:7px; min-height:32px; padding:0 13px;
     border:1px solid rgba(255,255,255,.24); border-radius:17px; cursor:pointer;
     color:#fff; font:700 13px/1 system-ui,-apple-system,"Segoe UI",sans-serif;
     background:rgba(10,132,255,.92); box-shadow:0 9px 24px rgba(0,0,0,.28);
   }
   .add-apps:active{ transform:scale(.97); }
-  /* Na tela de abertos, a ação fica junto do título: visível sem cobrir o dock. */
-  body.is-recents .add-apps{
+  /* Cada botão pertence à sua tela para acompanhar o mesmo deslize vertical. */
+  #screenRecents .add-apps{
     top:calc(env(safe-area-inset-top, 0px) + 12px);
     right:clamp(12px, 4vw, 20px);
     bottom:auto;
-    z-index:40;
+    z-index:3;
   }
-  body.is-recents .thead{
-    justify-content:flex-start;
-    padding-right:104px;
-  }
-  body.is-recents .ttitle{ text-align:left; }
   .launchpad{
     flex: 1 1 auto; min-height: 0;
     display: flex;
@@ -900,11 +895,14 @@
           <div class="page-actions"><button class="add-page" id="removePage" type="button" data-i18n="page.remove" hidden>− Página</button><button class="add-page" id="addPage" type="button" data-i18n="page.add">＋ Página</button></div>
         </div>
       </div>
+      <button class="add-apps" id="addApps" type="button" data-i18n="dock.addApps">＋ APP</button>
     </section>
-    <section class="screen" id="screenRecents"></section>
+    <section class="screen" id="screenRecents">
+      <div id="recentsContent"></div>
+      <button class="add-apps" id="addAppsRecents" type="button" data-i18n="dock.addApps">＋ APP</button>
+    </section>
   </div>
 </main>
-<button class="add-apps" id="addApps" type="button" data-i18n="dock.addApps">＋ APP</button>
 <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ativar modo escuro" title="Ativar modo escuro">☾</button>
 
 <div class="vdots" id="vdots"></div>
@@ -2178,7 +2176,7 @@
       sc.appendChild(hint);
     }
 
-    replaceChildren($("screenRecents"), [sc]);
+    replaceChildren($("recentsContent"), [sc]);
     if (q.length) renderDeck();
     bindDeckGestures();
   }
@@ -2268,10 +2266,12 @@
     launchpad.scrollLeft = Math.max(0, cfg.pageCount - 1) * launchpad.clientWidth;
   });
 
-  $("addApps").addEventListener("click", async function(){
-    const button = $("addApps");
-    button.disabled = true;
-    button.textContent = t("dock.loading");
+  async function openAppsPicker(){
+    const buttons = [$("addApps"), $("addAppsRecents")].filter(Boolean);
+    buttons.forEach(function(button){
+      button.disabled = true;
+      button.textContent = t("dock.loading");
+    });
     try {
       const response = await req("/api/apps/installed", { timeout: 20000 });
       if (response.status !== 200 || !response.data || !Array.isArray(response.data.apps)) throw new Error("inventory");
@@ -2281,9 +2281,14 @@
     } catch (error) {
       toast(t("dock.loadAppsFailed"), "err");
     } finally {
-      button.disabled = false;
-      button.textContent = t("dock.addApps");
+      buttons.forEach(function(button){
+        button.disabled = false;
+        button.textContent = t("dock.addApps");
+      });
     }
+  }
+  [$("addApps"), $("addAppsRecents")].filter(Boolean).forEach(function(button){
+    button.addEventListener("click", openAppsPicker);
   });
 
   // ---------- OBS (drawer) ----------

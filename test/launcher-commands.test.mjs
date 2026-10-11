@@ -49,12 +49,18 @@ test("tela de apps abertos mostra o nome legível sob cada ícone", async t => {
   assert.deepEqual(await page.locator("#screenRecents .dcard .dname").allTextContents(), ["Google Chrome", "Configurações do Windows"]);
   await page.evaluate(() => document.body.classList.add("is-recents"));
   assert.equal(await page.locator("#screenRecents .ttitle").textContent(), "Apps Abertos");
-  const addAppsLayout = await page.locator("#addApps").evaluate(button => {
+  const recentsLayout = await page.locator("#addAppsRecents").evaluate(button => {
     const box = button.getBoundingClientRect();
     return { top: box.top, right: innerWidth - box.right };
   });
-  assert.ok(addAppsLayout.top < 40, "o botão + APP deve ficar no topo da tela de abertos");
-  assert.ok(addAppsLayout.right <= 24, "o botão + APP deve ficar alinhado à direita");
+  assert.ok(recentsLayout.top < 40, "o botão + APP deve ficar no topo da tela de abertos");
+  assert.ok(recentsLayout.right <= 24, "o botão + APP deve ficar alinhado à direita");
+  const titleLayout = await page.locator("#screenRecents .thead").evaluate(header => {
+    const title = header.querySelector(".ttitle").getBoundingClientRect();
+    return { centerOffset: Math.abs((title.left + title.width / 2) - innerWidth / 2), justifyContent: getComputedStyle(header).justifyContent };
+  });
+  assert.ok(titleLayout.centerOffset < 1, "Apps Abertos deve permanecer centralizado");
+  assert.equal(titleLayout.justifyContent, "center");
   const labelLayout = await page.locator("#screenRecents .dcard").first().evaluate(card => {
     const label = card.querySelector(".dname");
     const icon = card.querySelector(".aglass");
@@ -69,9 +75,11 @@ test("tela de apps abertos mostra o nome legível sob cada ícone", async t => {
   assert.equal(labelLayout.clamp, "2", "nomes longos devem ocupar no máximo duas linhas");
 });
 
-test("APK empacota o cabeçalho de Apps Abertos com o botão no topo direito", async () => {
+test("APK empacota botões que acompanham cada tela e mantém Apps Abertos centralizado", async () => {
   const bundled = await readFile(new URL("../android/app/src/main/assets/public/index.html", import.meta.url), "utf8");
   assert.match(bundled, /"recents\.title": "Apps Abertos"/);
-  assert.match(bundled, /body\.is-recents \.add-apps\{/);
+  assert.match(bundled, /id="addAppsRecents"/);
+  assert.match(bundled, /#screenRecents \.add-apps\{/);
+  assert.doesNotMatch(bundled, /body\.is-recents \.thead/);
   assert.match(bundled, /\.dcard \.dname\{[\s\S]*?-webkit-line-clamp: 2/);
 });

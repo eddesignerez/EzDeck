@@ -10,11 +10,11 @@ const [packageJson, publicVersion, androidGradle, signingPolicy, installerScript
   readFile(new URL("../windows/package-installer.ps1", import.meta.url), "utf8"),
 ]);
 
-test("todos os metadados apontam para a release v0.2.10", () => {
-  assert.equal(JSON.parse(packageJson).version, "0.2.10");
-  assert.deepEqual(JSON.parse(publicVersion), { tag: "v0.2.10", apkVersion: "0.2.10" });
-  assert.match(androidGradle, /versionCode = 13/);
-  assert.match(androidGradle, /versionName = "0\.2\.10"/);
+test("todos os metadados apontam para a release v0.2.11", () => {
+  assert.equal(JSON.parse(packageJson).version, "0.2.11");
+  assert.deepEqual(JSON.parse(publicVersion), { tag: "v0.2.11", apkVersion: "0.2.11" });
+  assert.match(androidGradle, /versionCode = 14/);
+  assert.match(androidGradle, /versionName = "0\.2\.11"/);
   assert.match(signingPolicy, /GitHub Actions/);
   assert.match(installerScript, /DisplayVersion", "__EZDECK_VERSION__"/);
   assert.match(installerScript, /\.Replace\('__EZDECK_VERSION__', \$displayVersion\)/);
