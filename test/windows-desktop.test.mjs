@@ -266,12 +266,22 @@ test("card drop swaps exact positions instead of reordering by list index", {tim
   t.after(()=>browser.close());
   const page=await browser.newPage({viewport:{width:1200,height:760}});
   await page.goto(`${base}/windows.html?token=test-only-host-key-abcdefghijklmnopqrstuvwxyz`);
-  await page.locator('.library-card',{hasText:'Calculadora'}).dragTo(page.locator('.slot').first());
+  const drop = (selector, position) => page.evaluate(({selector,position}) => {
+    const source = document.querySelector(selector);
+    const target = document.querySelectorAll('.slot')[position];
+    if (!source || !target) throw Error('Origem ou destino de arraste ausente');
+    const dataTransfer = new DataTransfer();
+    source.dispatchEvent(new DragEvent('dragstart',{bubbles:true,cancelable:true,dataTransfer}));
+    target.dispatchEvent(new DragEvent('dragover',{bubbles:true,cancelable:true,dataTransfer}));
+    target.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer}));
+  }, {selector,position});
+  await drop('.library-card[data-name="Calculadora"]',0);
+  await page.waitForFunction(()=>document.querySelectorAll('.tile').length===1);
   await fetch(`${base}/api/config/pinned`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({app:'Bloco de notas'})});
   // Alterações feitas no navegador/telefone devem chegar à janela nativa sem
   // minimizar, reabrir ou atualizar manualmente.
   await page.waitForFunction(()=>document.querySelectorAll('.tile').length===2);
-  await page.locator('.tile',{hasText:'Calculadora'}).dragTo(page.locator('.slot').nth(1));
+  await drop('.tile[data-name="Calculadora"]',1);
   await page.waitForFunction(()=>[...document.querySelectorAll('.slot')].findIndex(s=>s.textContent.includes('Calculadora'))===1);
   const cfg=await (await fetch(`${base}/api/config`)).json();
   assert.equal(cfg.config.pieces.find(p=>p.name==='Calculadora').position,1);
