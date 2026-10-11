@@ -139,6 +139,18 @@
     background:rgba(10,132,255,.92); box-shadow:0 9px 24px rgba(0,0,0,.28);
   }
   .add-apps:active{ transform:scale(.97); }
+  /* Na tela de abertos, a ação fica junto do título: visível sem cobrir o dock. */
+  body.is-recents .add-apps{
+    top:calc(env(safe-area-inset-top, 0px) + 12px);
+    right:clamp(12px, 4vw, 20px);
+    bottom:auto;
+    z-index:40;
+  }
+  body.is-recents .thead{
+    justify-content:flex-start;
+    padding-right:104px;
+  }
+  body.is-recents .ttitle{ text-align:left; }
   .launchpad{
     flex: 1 1 auto; min-height: 0;
     display: flex;
@@ -435,16 +447,16 @@
   .deck{
     position: relative;
     width: 100%;
-    height: calc(var(--app-tile) + 52px);
-    min-height: 180px;
-    max-height: 300px;
+    height: calc(var(--app-tile) + 76px);
+    min-height: 204px;
+    max-height: 324px;
     display: flex; align-items: center;
     overflow-x: auto; overflow-y: hidden;
     scrollbar-width: none;
     touch-action: pan-x;
     overscroll-behavior-x: contain;
     /* Mesma margem lateral da grid da tela 1. */
-    padding: 0 clamp(12px, 3vw, 32px) 22px;
+    padding: 0 clamp(12px, 3vw, 32px) 14px;
     box-sizing: border-box;
   }
   .deck::-webkit-scrollbar{ display: none; }
@@ -464,9 +476,9 @@
     position: relative;
     flex: 0 0 auto;
     width: var(--app-tile);
-    height: calc(var(--app-tile) + 24px);
+    height: calc(var(--app-tile) + 48px);
     display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-    gap: 8px;
+    gap: 6px;
     padding-bottom: 0;
     cursor: pointer;
     user-select: none; -webkit-user-select: none;
@@ -485,10 +497,22 @@
   }
   .dcard .aglass .gicon{ font-size: clamp(30px, 3vw, 66px); }
   .dcard .dname{
-    position: absolute; width: 1px; height: 1px; overflow: hidden;
-    clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+    width: 100%; min-height: 28px;
+    padding: 0 2px;
+    box-sizing: border-box;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-size: clamp(11px, 1.55vw, 13px);
+    line-height: 1.15;
+    font-weight: 600;
+    letter-spacing: .015em;
+    color: rgba(255,255,255,.92);
+    text-align: center;
+    text-shadow: 0 1px 2px rgba(0,0,0,.35);
+    overflow-wrap: anywhere;
   }
-  .dcard.front .dname{ opacity: 1; }
   .rempty{
     margin: auto;
     color: var(--ink-3); font-size: 13px; text-align: center;
@@ -958,8 +982,8 @@
       "login.step3Prefix": "No Windows, veja o", "login.generateCode": "código de 4 dígitos", "login.step3Suffix": "na janela do EzDeck e digite-o aqui.",
       "login.pinLabel": "Código de acesso", "login.connect": "Conectar", "login.invalidCode": "Código inválido",
       "login.tooMany": "Muitas tentativas — aguarde um pouco.", "login.wrongCode": "Código errado.",
-      "dock.openApps": "Apps abertos", "dock.apps": "Apps", "dock.pinned": "Favoritos", "dock.tapToOpen": "Toque em um app para abrir",
-      "recents.title": "Apps abertos", "recents.empty": "Nada aberto ainda — abra um app no Windows para ele aparecer aqui",
+      "dock.openApps": "Apps Abertos", "dock.apps": "Apps", "dock.pinned": "Favoritos", "dock.tapToOpen": "Toque em um app para abrir",
+      "recents.title": "Apps Abertos", "recents.empty": "Nada aberto ainda — abra um app no Windows para ele aparecer aqui",
       "modal.pinTitle": "Fixar apps como favoritos",
       "dock.opened": "aberto", "dock.noOpenApps": "Nada aberto ainda — abra um app no Windows para ele aparecer aqui",
       "dock.pinApps": "Fixar apps como favoritos", "dock.pinSubtitle": "Escolha os atalhos do Windows que aparecem no painel.", "dock.addApps": "＋ APP",
@@ -1995,12 +2019,13 @@
       if (a.type && a.type !== "Foreground") return;
       if (seen[a.name]) return;
       seen[a.name] = true;
-      q.push(a.name);
+      q.push({ name: a.name, label: a.displayName || a.name });
     });
     return q;
   }
 
-  function makeDeckCard(name){
+  function makeDeckCard(app){
+    const name = app.name;
     const c = document.createElement("div");
     c.className = "dcard front";
     c.dataset.name = name;
@@ -2023,7 +2048,7 @@
     c.appendChild(glass);
     const nm = document.createElement("div");
     nm.className = "dname";
-    nm.textContent = name;
+    nm.textContent = app.label;
     c.appendChild(nm);
     makeBtn(c, name, function(el){ activateApp(el.dataset.name); });
     return c;
@@ -2044,8 +2069,8 @@
 
     const group = document.createElement("div");
     group.className = "deck-group";
-    q.forEach(function(item){
-      group.appendChild(makeDeckCard(item));
+    q.forEach(function(app){
+      group.appendChild(makeDeckCard(app));
     });
     inner.appendChild(group);
     deck.appendChild(inner);
@@ -2465,7 +2490,7 @@
     let run = [];
     for (let i = 0; i < state.running.length; i++){
       const a = state.running[i];
-      if (!a.type || a.type === "Foreground") run.push(a.name);
+      if (!a.type || a.type === "Foreground") run.push(a.name + "\u0000" + (a.displayName || ""));
     }
     run.sort();
     return run.join("\u0001") +

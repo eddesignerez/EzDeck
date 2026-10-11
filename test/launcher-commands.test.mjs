@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 import {chromium} from 'playwright';
 import {startServer} from '../server.js';
 
@@ -24,4 +25,53 @@ for(const touch of [false,true])test(`launcher ${touch?'touch':'mouse'} sends on
   await page.waitForFunction(()=>document.getElementById('command-notice').textContent.includes('confirmado'));
   assert.equal(calls,1);
   assert.ok((await page.evaluate(()=>window.ezdeckLastCommand)).roundTripMs>=0);
+});
+
+test("tela de apps abertos mostra o nome legível sob cada ícone", async t => {
+  const platform = {
+    appTools: {
+      listInstalledApps: async () => [],
+      listAppProcesses: async () => [
+        { name: "Google Chrome", pid: 11 },
+        { name: "Configurações do Windows", pid: 12 },
+      ],
+    },
+    iconService: { getIconPng: async () => null },
+    actions: { activateApp: async () => {} },
+  };
+  const server = await startServer({ port: 0, config: { pinned: [] }, platform, obs: null });
+  t.after(() => server.close());
+  const browser = await chromium.launch({ headless: true, channel: process.platform === "win32" ? "msedge" : undefined });
+  t.after(() => browser.close());
+  const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
+  await page.goto(`http://127.0.0.1:${server.port}/`);
+  await page.waitForFunction(() => document.querySelectorAll("#screenRecents .dcard .dname").length === 2);
+  assert.deepEqual(await page.locator("#screenRecents .dcard .dname").allTextContents(), ["Google Chrome", "Configurações do Windows"]);
+  await page.evaluate(() => document.body.classList.add("is-recents"));
+  assert.equal(await page.locator("#screenRecents .ttitle").textContent(), "Apps Abertos");
+  const addAppsLayout = await page.locator("#addApps").evaluate(button => {
+    const box = button.getBoundingClientRect();
+    return { top: box.top, right: innerWidth - box.right };
+  });
+  assert.ok(addAppsLayout.top < 40, "o botão + APP deve ficar no topo da tela de abertos");
+  assert.ok(addAppsLayout.right <= 24, "o botão + APP deve ficar alinhado à direita");
+  const labelLayout = await page.locator("#screenRecents .dcard").first().evaluate(card => {
+    const label = card.querySelector(".dname");
+    const icon = card.querySelector(".aglass");
+    return {
+      labelHeight: label.getBoundingClientRect().height,
+      isBelowIcon: label.getBoundingClientRect().top >= icon.getBoundingClientRect().bottom,
+      clamp: getComputedStyle(label).webkitLineClamp,
+    };
+  });
+  assert.ok(labelLayout.labelHeight > 0, "o nome deve ocupar espaço visível abaixo do ícone");
+  assert.equal(labelLayout.isBelowIcon, true);
+  assert.equal(labelLayout.clamp, "2", "nomes longos devem ocupar no máximo duas linhas");
+});
+
+test("APK empacota o cabeçalho de Apps Abertos com o botão no topo direito", async () => {
+  const bundled = await readFile(new URL("../android/app/src/main/assets/public/index.html", import.meta.url), "utf8");
+  assert.match(bundled, /"recents\.title": "Apps Abertos"/);
+  assert.match(bundled, /body\.is-recents \.add-apps\{/);
+  assert.match(bundled, /\.dcard \.dname\{[\s\S]*?-webkit-line-clamp: 2/);
 });

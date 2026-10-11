@@ -217,6 +217,15 @@ test("Windows control center uses the visual card deck and local host controls",
   const errors=[];page.on("pageerror",error=>errors.push(error.message));
   await page.goto(`${base}/windows.html?token=test-only-host-key-abcdefghijklmnopqrstuvwxyz`);
   await page.waitForSelector(".library-card");
+  await page.waitForFunction(() => /^\d+(?:\.\d+)+$/.test(document.querySelector('#software-version')?.textContent || ''));
+  assert.match(await page.locator('#software-version').textContent(), /^\d+(?:\.\d+)+$/, 'a versão deve mostrar somente números');
+  const versionPosition = await page.locator('#software-version').evaluate(el => {
+    const version = el.getBoundingClientRect();
+    const panel = el.closest('.deck-wrap').getBoundingClientRect();
+    return { isInside: version.right <= panel.right && version.bottom <= panel.bottom, isRightAligned: version.right >= panel.right - 28 };
+  });
+  assert.equal(versionPosition.isInside, true);
+  assert.equal(versionPosition.isRightAligned, true, 'a versão deve ficar no canto inferior direito do painel');
   await page.locator('#theme-toggle').click();
   assert.equal(await page.locator('html').getAttribute('data-theme'),'dark','modo escuro deve ser aplicado no painel Windows');
   await page.reload();

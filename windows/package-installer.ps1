@@ -4,6 +4,7 @@ param([string]$Output)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($Output)) { $Output = Join-Path $root 'dist\EzDeck-Setup.exe' }
+$displayVersion = (Get-Content -LiteralPath (Join-Path $root 'package.json') -Raw | ConvertFrom-Json).version
 $node = (Get-Command node -ErrorAction Stop).Source
 if (-not (Test-Path -LiteralPath $node)) { throw 'Node.js não foi encontrado para embutir no instalador.' }
 
@@ -151,7 +152,7 @@ internal static class EzDeckInstaller {
       if (!File.Exists(uninstaller)) throw new InvalidOperationException("Desinstalador interno do EzDeck não foi encontrado.");
       using (var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\EzDeck")) {
         key.SetValue("DisplayName", "EzDeck");
-        key.SetValue("DisplayVersion", "0.2.8");
+        key.SetValue("DisplayVersion", "__EZDECK_VERSION__");
         key.SetValue("Publisher", "EzDeck");
         key.SetValue("InstallLocation", target);
         key.SetValue("DisplayIcon", Path.Combine(target, "ezdeck.ico"));
@@ -167,6 +168,7 @@ internal static class EzDeckInstaller {
   }
 }
 '@
+  $launcherSource = $launcherSource.Replace('__EZDECK_VERSION__', $displayVersion)
   $sourceFile = Join-Path $stage 'EzDeckInstaller.cs'
   Set-Content -LiteralPath $sourceFile -Value $launcherSource -Encoding UTF8
   & $compiler /nologo /target:winexe /platform:anycpu /optimize+ "/out:$Output" "/win32icon:$($app + '\\ezdeck.ico')" "/resource:$archive,EzDeck.payload.zip" /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /r:System.Windows.Forms.dll $sourceFile

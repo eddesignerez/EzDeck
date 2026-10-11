@@ -42,7 +42,23 @@ Get-StartApps|ForEach-Object{
   [pscustomobject]@{name=$start.Name;appId=$start.AppID;iconPath=$iconPath}
 }|ConvertTo-Json -Compress
 `;
-const PROCESS_SCRIPT = "Get-Process | Where-Object { $_.MainWindowHandle -ne 0 } | ForEach-Object { [pscustomobject]@{ name = $_.ProcessName; pid = $_.Id; path = $_.Path } } | ConvertTo-Json -Compress";
+// O nome do processo raramente é um bom rótulo para pessoas (por exemplo,
+// ApplicationFrameHost). Coletamos metadados locais do executável para que a
+// tela remota possa mostrar o nome do aplicativo, não uma sigla técnica.
+const PROCESS_SCRIPT = String.raw`
+Get-Process | Where-Object { $_.MainWindowHandle -ne 0 } | ForEach-Object {
+  $path = try { $_.Path } catch { $null }
+  $description = try { $_.MainModule.FileVersionInfo.FileDescription } catch { $null }
+  $product = try { $_.MainModule.FileVersionInfo.ProductName } catch { $null }
+  [pscustomobject]@{
+    name = $_.ProcessName
+    pid = $_.Id
+    path = $path
+    title = $_.MainWindowTitle
+    description = $description
+    product = $product
+  }
+} | ConvertTo-Json -Compress`;
 const SHORTCUT_SCRIPT = "$shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($args[0]); [pscustomobject]@{ target = $shortcut.TargetPath } | ConvertTo-Json -Compress";
 const ICON_SCRIPT = String.raw`
 Add-Type -AssemblyName System.Drawing
@@ -90,6 +106,41 @@ try{$bitmap.Save($args[1],[System.Drawing.Imaging.ImageFormat]::Png)}finally{$bi
 
 function normalize(value) {
   return String(value || "").trim().toLocaleLowerCase("pt-BR");
+}
+
+const GENERIC_WINDOW_HOSTS = new Set([
+  "applicationframehost",
+  "application frame host",
+  "rundll32",
+  "dllhost",
+]);
+
+function cleanAppLabel(value) {
+  const label = String(value || "").replace(/\s+/g, " ").trim();
+  return label || null;
+}
+
+/**
+ * Escolhe um nome que uma pessoa reconhece, sem depender do título de uma aba
+ * quando há descrição do executável ou entrada correspondente no Menu Iniciar.
+ */
+export function readableRunningAppName(process, installedApps = []) {
+  const path = normalize(process?.path);
+  const installed = path && installedApps.find(app =>
+    path === normalize(app.targetPath || app.path)
+  );
+  if (installed?.name) return String(installed.name);
+
+  const processName = cleanAppLabel(process?.name);
+  const isGenericHost = GENERIC_WINDOW_HOSTS.has(normalize(processName));
+  const title = cleanAppLabel(process?.title);
+  const description = cleanAppLabel(process?.description);
+  const product = cleanAppLabel(process?.product);
+
+  // Para hosts genéricos do Windows, o título da janela é a única identidade
+  // visível do app hospedado (por exemplo, "Configurações").
+  if (isGenericHost && title) return title;
+  return description || product || title || processName || "Aplicativo";
 }
 
 export function defaultStartMenuDirectories(env = process.env) {
@@ -275,8 +326,8 @@ export function createWindowsApps(deps = {}) {
     async listAppProcesses() {
       const [processes, installed] = await Promise.all([listProcesses(), api.listInstalledApps()]);
       return processes.map(item => {
-        const match = installed.find(app => item.path && normalize(app.targetPath || app.path) === normalize(item.path));
-        return { ...item, name: match ? match.name : item.name };
+        const { title, description, product, ...publicProcess } = item;
+        return { ...publicProcess, name: readableRunningAppName(item, installed) };
       });
     },
   };
