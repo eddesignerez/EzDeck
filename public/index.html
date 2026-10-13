@@ -533,6 +533,7 @@
     pointer-events: none;
   }
   .app-version{
+    display:none;
     position:absolute;
     right:clamp(12px, 3vw, 24px);
     bottom:calc(env(safe-area-inset-bottom, 0px) + 6px);
@@ -544,6 +545,7 @@
     letter-spacing:.04em;
     pointer-events:none;
   }
+  body.is-recents .app-version{display:block}
   .robscard{
     flex: 0 0 auto; display: flex; align-items: center;
     width: calc(100% - 40px); max-width: 360px;
@@ -3544,6 +3546,9 @@
     $("upBanner").classList.remove("show");
   });
   function checkVersion(attempt){
+    // New APKs check GitHub natively, including when the Windows host is offline.
+    // Older APKs retain the existing banner flow.
+    try { if (window.EzDeckAndroid && window.EzDeckAndroid.handlesUpdates && window.EzDeckAndroid.handlesUpdates()) return; } catch (_) {}
     attempt = attempt || 0;
     // Evita manter um banner antigo depois que o APK foi atualizado e a
     // WebView voltou do instalador do Android.

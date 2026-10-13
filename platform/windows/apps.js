@@ -75,10 +75,11 @@ $explorer=New-Object -ComObject Shell.Application
   if ([IO.Path]::GetExtension($p) -eq '.lnk') {
     try {
       $shortcut=$shell.CreateShortcut($p); $target=$shortcut.TargetPath
+      # Atalhos comuns também podem ter ícone próprio, separado do runtime.
+      $location=$shortcut.IconLocation -replace ',\s*-?\d+$',''
+      if ([IO.Path]::IsPathRooted($location) -and [IO.Path]::GetExtension($location) -eq '.ico' -and (Test-Path -LiteralPath $location -PathType Leaf)) { $icon=$location }
       if ($shortcut.Arguments -match '--app-id[=\s]+"?([a-p]{32})(?:"|\s|$)') {
         $appId=$Matches[1]
-        $location=$shortcut.IconLocation -replace ',\s*-?\d+$',''
-        if ([IO.Path]::IsPathRooted($location) -and [IO.Path]::GetExtension($location) -eq '.ico' -and (Test-Path -LiteralPath $location -PathType Leaf)) { $icon=$location }
         try { $folder=$explorer.Namespace([IO.Path]::GetDirectoryName($p)); $item=$folder.ParseName([IO.Path]::GetFileName($p)); $aumid=$item.ExtendedProperty('System.AppUserModel.ID') } catch {}
       }
     } catch {}
@@ -471,10 +472,15 @@ export function createWindowsIconService({ listInstalledApps, listAppProcesses, 
       }
       if (!app || !app.path || app.icon === false) return null;
       const cachedFile = await diskCachePath(app, key);
+      // Um scan novo pode corrigir a fonte sem mudar o nome do aplicativo.
+      // Não manter o ícone do runtime após descobrir o ICO do atalho.
+      const source = cachedFile || String(app.iconSource || app.targetPath || app.path);
+      const cached = memory.get(key);
+      if (cached?.source === source) return cached.bytes;
       if (cachedFile) {
         try {
           const bytes = await readFile(cachedFile);
-          memory.set(key, bytes);
+          memory.set(key, { source, bytes });
           return bytes;
         } catch {}
       }
@@ -489,7 +495,7 @@ export function createWindowsIconService({ listInstalledApps, listAppProcesses, 
         await convertIcon(app.iconSource || app.targetPath || app.path, output, deps);
         const bytes = await readFile(output);
         if (cachedFile) await writeFile(cachedFile, bytes, { mode: 0o600 }).catch(() => {});
-        memory.set(key, bytes);
+        memory.set(key, { source, bytes });
         while (memory.size > maxEntries) memory.delete(memory.keys().next().value);
         return bytes;
       } catch {
@@ -504,7 +510,6 @@ export function createWindowsIconService({ listInstalledApps, listAppProcesses, 
     clear() { memory.clear(); },
     async getIconPng(name) {
       const key = normalize(name);
-      if (memory.has(key)) return memory.get(key);
       if (inflight.has(key)) return inflight.get(key);
       const task = extract(name, key).finally(() => inflight.delete(key));
       inflight.set(key, task);

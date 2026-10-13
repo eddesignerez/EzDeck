@@ -478,6 +478,23 @@ export function makeApp(deps = {}) {
             .then(action => { ok({ ok: true, action }); })
             .catch(error => respondError(400, { error: error.message }));
         });
+      } else if (url.pathname === '/api/windows/update' && req.method === 'GET' && host.updater) {
+        ok({ ok: true, ...host.updater.snapshot() });
+      } else if (url.pathname === '/api/windows/update/preferences' && req.method === 'POST' && host.updater) {
+        readBody(req,res).then(async body => {
+          if (body === BODY_TOO_BIG) return;
+          if (body === BODY_INVALID || typeof body?.automatic !== 'boolean' || !host.updater.setAutomatic) {
+            respondError(400,{error:'Opção inválida'}); return;
+          }
+          ok({ok:true,...await host.updater.setAutomatic(body.automatic)});
+        }).catch(error => fail(res,error));
+      } else if (url.pathname === '/api/windows/update/install' && req.method === 'POST' && host.updater) {
+        host.updater.install().then(async result => {
+          // Spawn the trusted handoff before acknowledging; on failure keep the host running.
+          await host.updater.apply();
+          ok({ ok: true, ...result });
+          setImmediate(() => host.shutdown());
+        }).catch(error => fail(res, error));
       } else if (url.pathname === "/api/windows/shutdown" && req.method === "POST") {
         ok({ ok: true });
         setImmediate(() => host.shutdown());

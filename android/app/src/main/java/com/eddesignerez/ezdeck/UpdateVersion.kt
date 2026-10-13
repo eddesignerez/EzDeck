@@ -12,6 +12,16 @@ internal object UpdateVersion {
         return "v" + parts.joinToString(".")
     }
 
+    fun githubReleaseVersion(location: String?): String? {
+        val prefix = "https://github.com/eddesignerez/EzDeck/releases/tag/"
+        val path = location?.let {
+            if (it.startsWith(prefix)) it.removePrefix(prefix)
+            else if (it.startsWith("/eddesignerez/EzDeck/releases/tag/")) it.removePrefix("/eddesignerez/EzDeck/releases/tag/")
+            else return null
+        } ?: return null
+        return releaseTag(path)?.removePrefix("v")
+    }
+
     private fun compare(left: String?, right: String?): Int {
         val a = parse(left) ?: return -1
         val b = parse(right) ?: return 1

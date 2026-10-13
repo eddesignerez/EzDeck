@@ -72,6 +72,24 @@ test("ícone PWA vem do ICO instalado, nunca do executável compartilhado do nav
   assert.equal((await icons.getIconPng("Freepik")).toString(), "C:/Icons/Freepik.ico");
 });
 
+test("ícone corrigido do atalho substitui cache antigo do runtime sem mudar o nome", async t => {
+  const directory = await mkdtemp(join(tmpdir(), "ezdeck-shortcut-icon-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const cacheDir = join(directory, "icons");
+  let app = { name:"EzDeck", path:"C:/Menu/EzDeck.lnk", targetPath:"C:/Windows/System32/wscript.exe" };
+  const sources = [];
+  const dependencies = { listInstalledApps:async () => [app], cacheDir,
+    convertIcon:async (source, output) => { sources.push(source); await writeFile(output, source); } };
+  const icons = createWindowsIconService(dependencies);
+  assert.equal((await icons.getIconPng("EzDeck")).toString(), app.targetPath);
+  app = { ...app, iconSource:"C:/EzDeck/ezdeck.ico" };
+  assert.equal((await icons.getIconPng("EzDeck")).toString(), app.iconSource);
+  assert.equal((await icons.getIconPng("EzDeck")).toString(), app.iconSource);
+  const restarted = createWindowsIconService({ ...dependencies, convertIcon:async () => { throw Error("cache correto já existe"); } });
+  assert.equal((await restarted.getIconPng("EzDeck")).toString(), app.iconSource);
+  assert.deepEqual(sources, [app.targetPath, app.iconSource]);
+});
+
 test("Explorer sem atalho usa ícone do processo local, nunca caminho recebido como nome", async () => {
   const sources = [];
   const icons = createWindowsIconService({ listInstalledApps: async () => [],

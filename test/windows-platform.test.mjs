@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createPlatform } from "../platform/platform-contract.js";
-import { createWindowsApps, isUserFacingRunningApp, readableRunningAppName, scanWindowsApps } from "../platform/windows/apps.js";
+import { createWindowsApps, isUserFacingRunningApp, readableRunningAppName, scanWindowsApps, runPowerShell } from "../platform/windows/apps.js";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createWindowsActions } from "../platform/windows/actions.js";
 import { startServer } from "../server.js";
 
@@ -52,6 +56,30 @@ test("PWA conserva atalho, identidade do perfil e ícone próprio no inventário
   assert.equal(installed[0].iconSource, "C:/Icons/Keep.ico");
   const restored = createWindowsApps({ scan: async () => installed });
   assert.deepEqual(await restored.listInstalledApps(), installed, "cache deve preservar a identidade PWA");
+});
+
+test("atalho Windows comum respeita ICO próprio e ignora fonte ausente ou executável", { skip:process.platform !== "win32" }, async t => {
+  const directory = await mkdtemp(join(tmpdir(), "ezdeck-native-shortcut-icons-"));
+  t.after(() => rm(directory, { recursive:true, force:true }));
+  const icon = fileURLToPath(new URL("../ezdeck.ico", import.meta.url));
+  const shortcuts = ["EzDeck", "Ausente", "Executavel"].map(name => join(directory, `${name}.lnk`));
+  await runPowerShell(String.raw`
+  $shell=New-Object -ComObject WScript.Shell
+  $target=Join-Path $env:WINDIR 'System32\wscript.exe'
+  for($index=0;$index -lt 3;$index++) {
+    $link=$shell.CreateShortcut($args[$index])
+    $link.TargetPath=$target
+    $link.IconLocation=@($args[3],$args[4],$target)[$index]+',0'
+    $link.Save()
+  }
+  `, [...shortcuts, icon, join(directory, "missing.ico")]);
+  const apps = await scanWindowsApps({ directories:[directory], findShortcuts:async () => shortcuts, listStoreApps:async () => [] });
+  const ezdeck = apps.find(app => app.name === "EzDeck");
+  assert.equal(ezdeck.iconSource, icon);
+  assert.equal(ezdeck.path, shortcuts[0], "identidade de abertura continua sendo o atalho");
+  assert.equal(ezdeck.pwaAppId, undefined, "não é uma PWA");
+  assert.equal(apps.find(app => app.name === "Ausente").iconSource, undefined);
+  assert.equal(apps.find(app => app.name === "Executavel").iconSource, undefined);
 });
 
 test("PWAs e navegador no mesmo PID têm identidades distintas sem expor títulos privados", async () => {

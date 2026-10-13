@@ -34,7 +34,28 @@ Para usar outra porta: `.\windows\run-dev.ps1 -Port 3200`.
 O modo básico de console fica disponível com `.\windows\run-dev.ps1 -Console`,
 sem a janela e o cadastro de teclas.
 
-## Verificar
+## Atualização pelo GitHub
+
+Na linha de **Iniciar com Windows**, o check **Atualização Automatica**
+controla a consulta da última Release estável ao iniciar, sem bloquear a abertura.
+A opção começa marcada e fica salva para as próximas aberturas. Desmarcada,
+não consulta o GitHub nem oferece busca manual: downloads manuais ficam no site.
+O número da versão fica nessa mesma linha, verde quando a consulta confirma a
+versão atual e amarelo quando há uma atualização. Sem consulta válida, fica neutro.
+Quando encontra uma versão nova, oferece **Atualizar agora**. Após confirmação,
+baixa o instalador, valida seu SHA256,
+encerra o EzDeck instalado e inicia a instalação. O instalador reabre o app.
+Botões e pareamento permanecem em `%APPDATA%\EzDeck`. Avisos de segurança do
+Windows não são contornados. A execução automática do instalador está disponível
+somente na instalação com runtime próprio, não no modo de desenvolvimento.
+
+A Release `vX.Y.Z` precisa incluir `EzDeck-Setup.exe` e `SHA256SUMS.txt` da
+mesma compilação. O empacotamento gera esse arquivo; depois de assinar o EXE,
+gere-o novamente com `windows/write-update-checksum.ps1 -Installer caminho`.
+Sem esse arquivo ou com hash divergente, nenhum instalador é executado.
+O workflow produz os artefatos, mas não publica uma Release automaticamente.
+
+## Testes
 
 ```powershell
 node --test test/windows-platform.test.mjs test/windows-desktop.test.mjs
