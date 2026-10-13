@@ -107,6 +107,7 @@ internal static class EzDeckUninstaller {
       MessageBox.Show(eraseData ? "EzDeck e todos os seus dados foram removidos." : "EzDeck foi desinstalado. Suas configurações foram preservadas para uma futura reinstalação.", "EzDeck", MessageBoxButtons.OK, MessageBoxIcon.Information);
     } catch (Exception error) {
       MessageBox.Show(error.Message, "EzDeck", MessageBoxButtons.OK, MessageBoxIcon.Error);
+      Environment.ExitCode = 1;
     }
   }
 }
@@ -164,6 +165,7 @@ internal static class EzDeckInstaller {
       Process.Start(new ProcessStartInfo("wscript.exe", "\"" + launcher + "\"") { WorkingDirectory = target, UseShellExecute = true });
     } catch (Exception error) {
       MessageBox.Show(error.Message, "EzDeck", MessageBoxButtons.OK, MessageBoxIcon.Error);
+      Environment.ExitCode = 1;
     }
   }
 }
@@ -173,7 +175,14 @@ internal static class EzDeckInstaller {
   Set-Content -LiteralPath $sourceFile -Value $launcherSource -Encoding UTF8
   & $compiler /nologo /target:winexe /platform:anycpu /optimize+ "/out:$Output" "/win32icon:$($app + '\\ezdeck.ico')" "/resource:$archive,EzDeck.payload.zip" /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /r:System.Windows.Forms.dll $sourceFile
   if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $Output)) { throw 'Não foi possível criar o instalador EzDeck-Setup.exe.' }
+  & (Join-Path $PSScriptRoot 'write-update-checksum.ps1') -Installer $Output
   Get-Item -LiteralPath $Output | Select-Object FullName, Length, LastWriteTime
 } finally {
+  $resolvedWork = [IO.Path]::GetFullPath($work)
+  $resolvedTemp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/')
+  if ([IO.Path]::GetDirectoryName($resolvedWork) -ne $resolvedTemp -or
+      [IO.Path]::GetFileName($resolvedWork) -notmatch '^ezdeck-installer-[a-f0-9]{32}$') {
+    throw 'Limpeza bloqueada: diretório temporário do instalador inválido.'
+  }
   Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 }

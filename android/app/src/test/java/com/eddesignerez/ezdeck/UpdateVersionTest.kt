@@ -6,6 +6,14 @@ import org.junit.Test
 
 class UpdateVersionTest {
     @Test
+    fun githubLookupAcceptsOnlyOurStableReleaseRedirect() {
+        assertTrue(UpdateVersion.githubReleaseVersion("https://github.com/eddesignerez/EzDeck/releases/tag/v0.2.13") == "0.2.13")
+        assertTrue(UpdateVersion.githubReleaseVersion("/eddesignerez/EzDeck/releases/tag/v0.2.13") == "0.2.13")
+        for (location in listOf(null, "https://evil.example/releases/tag/v9.0.0", "https://github.com/other/EzDeck/releases/tag/v9.0.0", "https://github.com/eddesignerez/EzDeck/releases/tag/v1.2.3-beta", "https://github.com/eddesignerez/EzDeck/releases/tag/v1.2.3/ezdeck.apk")) {
+            assertTrue(UpdateVersion.githubReleaseVersion(location) == null)
+        }
+    }
+    @Test
     fun equalVersionsDoNotTriggerAnUpdate() {
         assertFalse(UpdateVersion.isNewer("v0.2.6", "0.2.6"))
     }

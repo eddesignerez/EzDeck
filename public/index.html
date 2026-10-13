@@ -3544,6 +3544,9 @@
     $("upBanner").classList.remove("show");
   });
   function checkVersion(attempt){
+    // New APKs check GitHub natively, including when the Windows host is offline.
+    // Older APKs retain the existing banner flow.
+    try { if (window.EzDeckAndroid && window.EzDeckAndroid.handlesUpdates && window.EzDeckAndroid.handlesUpdates()) return; } catch (_) {}
     attempt = attempt || 0;
     // Evita manter um banner antigo depois que o APK foi atualizado e a
     // WebView voltou do instalador do Android.

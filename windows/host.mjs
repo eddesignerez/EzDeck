@@ -9,6 +9,8 @@ import { createCommandWorker } from '../platform/windows/command-worker.js';
 import { createWindowsActions } from '../platform/windows/actions.js';
 import { KEYBOARD_WARMUP } from '../platform/windows/shortcuts.js';
 import { createStartup } from '../platform/windows/startup.js';
+import { createAutomaticWindowsUpdater } from '../platform/windows/automatic-updater.js';
+import { readFile } from 'node:fs/promises';
 
 const token = process.env.EZDECK_HOST_TOKEN;
 if (!token || token.length < 32) throw new Error("Inicie pela janela EzDeck.vbs ou windows/run-dev.ps1");
@@ -26,6 +28,9 @@ function preferredLanAddress() {
 }
 const address = () => process.env.EZDECK_LAN_ADDRESS || preferredLanAddress();
 await mkdir(directory, { recursive: true });
+const installedVersion = JSON.parse(await readFile(join(import.meta.dirname, '..', 'package.json'), 'utf8')).version;
+const updater = await createAutomaticWindowsUpdater({ current: installedVersion, root: join(import.meta.dirname, '..'), directory: join(directory, 'updates') });
+updater.check().catch(() => {});
 const commands = createCommandWorker();
 const startup = createStartup({root:join(import.meta.dirname,'..'),run:commands.run});
 commands.run(KEYBOARD_WARMUP).catch(error => console.error('[commands]', error.message));
@@ -64,7 +69,7 @@ async function shutdown() {
   try { commands.close(); discovery?.close(); await server?.close(); } finally { clearTimeout(deadline); process.exit(0); }
 }
 server = await startServer({ platform, configFile: join(directory, "config.json"), dataDir: directory,
-  windowsHost: { token, actions: custom, startup, shutdown, address, getPin: () => server?.getPin(), getPort: () => server?.port, refreshApps: () => platform.appTools.refreshInstalledApps?.() },
+  windowsHost: { token, actions: custom, startup, updater, shutdown, address, getPin: () => server?.getPin(), getPort: () => server?.port, refreshApps: () => platform.appTools.refreshInstalledApps?.() },
 });
 discovery = startDiscovery(3001, { portHint: server.port });
 process.on("SIGTERM", shutdown);

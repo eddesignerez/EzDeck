@@ -18,6 +18,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Build
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
@@ -67,41 +69,28 @@ class MainActivity : ComponentActivity() {
     private var pendingUpdateVersion: String? = null
     private var updateReceiverRegistered = false
     private var updateExpectedVersion: String? = null
+    private val updatePrefs by lazy { getSharedPreferences("updates", MODE_PRIVATE) }
+    private var updateForeground = false
+    private var availableUpdateVersion: String? = null
+    private val updateHandler = Handler(Looper.getMainLooper())
+    private val updatePoll = object : Runnable {
+        override fun run() {
+            if (!updateForeground) return
+            resumeUpdateDownload()
+            if (updateDownloadId != null) updateHandler.postDelayed(this, 1000)
+        }
+    }
 
     private val updateApkBaseUrl = "https://github.com/eddesignerez/EzDeck/releases/download"
     private val updateMime = "application/vnd.android.package-archive"
     private val updateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return
             val id = intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L) ?: return
             if (id <= 0 || id != updateDownloadId) return
-            updateDownloadId = null
-
-            val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            val cursor = manager.query(DownloadManager.Query().setFilterById(id))
-            try {
-                if (!cursor.moveToFirst()) {
-                    showUpdateMessage(message("update.downloadCheck"))
-                    return
-                }
-                val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-                if (status != DownloadManager.STATUS_SUCCESSFUL) {
-                    showUpdateMessage(message("update.downloadError"))
-                    return
-                }
-                val uri = manager.getUriForDownloadedFile(id)
-                if (uri == null) {
-                    showUpdateMessage(message("update.fileMissing"))
-                    return
-                }
-                if (!validateDownloadedApk(uri)) {
-                    showUpdateMessage(message("update.invalidPackage"))
-                    manager.remove(id)
-                    return
-                }
-                installDownloadedApk(uri)
-            } finally {
-                cursor.close()
-            }
+            // The broadcast is only a hint. Query our own persisted download,
+            // then verify package, version and signature before installation.
+            if (updateForeground) resumeUpdateDownload()
         }
     }
 
@@ -141,6 +130,14 @@ class MainActivity : ComponentActivity() {
         // grava ou carrega uma URL fora do contrato HTTP(S) com host.
         intent.getStringExtra("server_url")?.let { applyServerUrl(it, persist = true) }
         registerUpdateReceiver()
+        updateExpectedVersion = UpdateVersion.releaseTag(updatePrefs.getString("version", null))?.removePrefix("v")
+        updateDownloadId = updatePrefs.getLong("downloadId", -1).takeIf { it > 0 }
+        pendingUpdateVersion = UpdateVersion.releaseTag(updatePrefs.getString("permissionVersion", null))?.removePrefix("v")
+        if (!UpdateVersion.isNewer(updateExpectedVersion, BuildConfig.VERSION_NAME)) clearUpdateDownload()
+        if (!UpdateVersion.isNewer(pendingUpdateVersion, BuildConfig.VERSION_NAME)) {
+            pendingUpdateVersion = null
+            updatePrefs.edit().remove("permissionVersion").apply()
+        }
 
         web.settings.apply {
             javaScriptEnabled = true
@@ -242,6 +239,8 @@ class MainActivity : ComponentActivity() {
             @android.webkit.JavascriptInterface
             fun appVersion(): String = BuildConfig.VERSION_NAME
             @android.webkit.JavascriptInterface
+            fun handlesUpdates(): Boolean = true
+            @android.webkit.JavascriptInterface
             fun requestUpdate(version: String) {
                 runOnUiThread { beginUpdate(version) }
             }
@@ -252,6 +251,7 @@ class MainActivity : ComponentActivity() {
         discoverServer { found ->
             if (!currentServerHealthy()) acceptDiscoveredServer(found)
         }
+        checkGitHubUpdate()
     }
 
     /** O servidor atual responde ao health contract? Bloqueante: chamar fora da UI thread. */
@@ -388,12 +388,17 @@ class MainActivity : ComponentActivity() {
     private var firstResume = true
     override fun onResume() {
         super.onResume()
+        updateForeground = true
         pendingUpdateVersion?.let { version ->
             if (canInstallPackages()) {
                 pendingUpdateVersion = null
-                enqueueUpdate(version)
+                updatePrefs.edit().remove("permissionVersion").apply()
+                if (updateDownloadId == null && UpdateVersion.isNewer(version, BuildConfig.VERSION_NAME)) enqueueUpdate(version)
             }
         }
+        updateHandler.removeCallbacks(updatePoll)
+        updatePoll.run()
+        showAvailableUpdate()
         if (firstResume) { firstResume = false; return }
         // Voltar ao primeiro plano não deve recarregar a WebView: em alguns
         // tablets o sistema entrega pequenos resumes e isso causava uma
@@ -402,12 +407,95 @@ class MainActivity : ComponentActivity() {
         if (offlinePanel.visibility == View.VISIBLE) retryConnection()
     }
 
+    override fun onPause() {
+        updateForeground = false
+        updateHandler.removeCallbacks(updatePoll)
+        super.onPause()
+    }
+
+    private fun checkGitHubUpdate() {
+        Thread {
+            val connection = URL("https://github.com/eddesignerez/EzDeck/releases/latest").openConnection() as HttpURLConnection
+            try {
+                connection.instanceFollowRedirects = false
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+                if (connection.responseCode !in listOf(301, 302, 303, 307, 308)) return@Thread
+                val version = UpdateVersion.githubReleaseVersion(connection.getHeaderField("Location")) ?: return@Thread
+                if (!UpdateVersion.isNewer(version, BuildConfig.VERSION_NAME)) return@Thread
+                runOnUiThread {
+                    if (!isFinishing && !isDestroyed) {
+                        availableUpdateVersion = version
+                        showAvailableUpdate()
+                    }
+                }
+            } catch (_: Exception) {
+                // No internet must not block pairing or the local launcher.
+            } finally {
+                connection.disconnect()
+            }
+        }.start()
+    }
+
+    private fun showAvailableUpdate() {
+        if (!updateForeground || updateDownloadId != null || pendingUpdateVersion != null) return
+        val version = availableUpdateVersion ?: return
+        availableUpdateVersion = null
+        AlertDialog.Builder(this)
+            .setTitle(message("update.available"))
+            .setMessage(message("update.offer", mapOf("version" to version)))
+            .setNegativeButton(message("update.cancel"), null)
+            .setPositiveButton(message("update.install")) { _, _ -> beginUpdate(version) }
+            .show()
+    }
+
+    private fun clearUpdateDownload() {
+        updateDownloadId = null
+        updateExpectedVersion = null
+        updatePrefs.edit().remove("downloadId").remove("version").apply()
+    }
+
+    private fun resumeUpdateDownload() {
+        if (!updateForeground) return
+        val id = updateDownloadId ?: return
+        val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        try {
+            val status = manager.query(DownloadManager.Query().setFilterById(id)).use { cursor ->
+                if (cursor.moveToFirst()) cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)) else null
+            }
+            when (UpdateDownloadPolicy.next(updateForeground, id, updateExpectedVersion, BuildConfig.VERSION_NAME, status)) {
+                UpdateDownloadPolicy.Action.WAIT -> return
+                UpdateDownloadPolicy.Action.FORGET -> { clearUpdateDownload(); return }
+                UpdateDownloadPolicy.Action.FAIL -> {
+                    clearUpdateDownload()
+                    showUpdateMessage(message("update.downloadError"))
+                    return
+                }
+                UpdateDownloadPolicy.Action.VALIDATE -> Unit
+            }
+            val uri = manager.getUriForDownloadedFile(id)
+            if (uri == null || !validateDownloadedApk(uri)) {
+                clearUpdateDownload()
+                manager.remove(id)
+                showUpdateMessage(message("update.invalidPackage"))
+                return
+            }
+            if (!canInstallPackages()) return // Keep the authorized download for the next resume.
+            if (installDownloadedApk(uri)) clearUpdateDownload()
+        } catch (e: Exception) {
+            Log.w("EzDeck", "Falha ao acompanhar atualização", e)
+            // Keep state so a temporary provider failure can be retried.
+        }
+    }
+
     private fun registerUpdateReceiver() {
+        // DownloadProvider may have its own UID. Export only this receiver;
+        // onReceive rejects other actions/IDs and never trusts broadcast contents.
         val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(updateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            registerReceiver(updateReceiver, filter, Context.RECEIVER_EXPORTED)
         } else {
-            ContextCompat.registerReceiver(this, updateReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+            ContextCompat.registerReceiver(this, updateReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
         }
         updateReceiverRegistered = true
     }
@@ -429,10 +517,18 @@ class MainActivity : ComponentActivity() {
         }
         if (!canInstallPackages()) {
             pendingUpdateVersion = versionName
+            updatePrefs.edit().putString("permissionVersion", versionName).apply()
             AlertDialog.Builder(this)
                 .setTitle(message("update.permissionTitle"))
                 .setMessage(message("update.permissionMessage"))
-                .setNegativeButton(message("update.cancel")) { _, _ -> pendingUpdateVersion = null }
+                .setNegativeButton(message("update.cancel")) { _, _ ->
+                    pendingUpdateVersion = null
+                    updatePrefs.edit().remove("permissionVersion").apply()
+                }
+                .setOnCancelListener {
+                    pendingUpdateVersion = null
+                    updatePrefs.edit().remove("permissionVersion").apply()
+                }
                 .setPositiveButton(message("update.settings")) { _, _ -> openInstallSettings() }
                 .show()
             return
@@ -462,7 +558,7 @@ class MainActivity : ComponentActivity() {
             return
         }
         val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val filename = "ezdeck-update-$version.apk"
+        val filename = "ezdeck-update-$version-${System.currentTimeMillis()}.apk"
         val apkUrl = "$updateApkBaseUrl/$releaseTag/ezdeck.apk"
         val request = DownloadManager.Request(Uri.parse(apkUrl))
             .setTitle(message("update.downloadTitle"))
@@ -472,8 +568,17 @@ class MainActivity : ComponentActivity() {
             .setAllowedOverRoaming(false)
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             .setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, filename)
-        updateExpectedVersion = version
-        updateDownloadId = manager.enqueue(request)
+        try {
+            val id = manager.enqueue(request)
+            updateExpectedVersion = version
+            updateDownloadId = id
+            updatePrefs.edit().putString("version", version).putLong("downloadId", id).apply()
+            updateHandler.removeCallbacks(updatePoll)
+            updateHandler.post(updatePoll)
+        } catch (_: Exception) {
+            showUpdateMessage(message("update.downloadError"))
+            return
+        }
         Toast.makeText(this, message("update.downloadStarted"), Toast.LENGTH_LONG).show()
     }
 
@@ -534,10 +639,10 @@ class MainActivity : ComponentActivity() {
         return installedSigs.isNotEmpty() && installedSigs == archiveSigs
     }
 
-    private fun installDownloadedApk(uri: Uri) {
+    private fun installDownloadedApk(uri: Uri): Boolean {
         if (!canInstallPackages()) {
             showUpdateMessage(message("update.permissionDenied"))
-            return
+            return false
         }
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, updateMime)
@@ -546,8 +651,12 @@ class MainActivity : ComponentActivity() {
         }
         try {
             startActivity(intent)
+            return true
         } catch (_: Exception) {
             showUpdateMessage(message("update.installerError"))
+            // Retry is user initiated rather than reopening a failed installer every second.
+            clearUpdateDownload()
+            return false
         }
     }
 
@@ -666,6 +775,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        updateHandler.removeCallbacks(updatePoll)
         if (updateReceiverRegistered) {
             unregisterReceiver(updateReceiver)
             updateReceiverRegistered = false

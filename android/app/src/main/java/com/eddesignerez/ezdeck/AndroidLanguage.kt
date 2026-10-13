@@ -7,6 +7,9 @@ import java.util.Locale
 /** Native Android copy for messages shown outside the PWA WebView. */
 object AndroidLanguage {
     private val portuguese = mapOf(
+        "update.available" to "Nova atualização do EzDeck",
+        "update.offer" to "A versão {version} está disponível. Após o download, o instalador será aberto para você confirmar a atualização.",
+        "update.install" to "Atualizar",
         "update.downloadCheck" to "Não foi possível verificar o download.",
         "update.downloadError" to "Não foi possível baixar a atualização.",
         "update.fileMissing" to "O arquivo da atualização não está disponível.",
@@ -20,7 +23,7 @@ object AndroidLanguage {
         "update.settings" to "Abrir configurações",
         "update.downloadTitle" to "Atualização do EzDeck",
         "update.downloadDescription" to "Baixando a versão {version}",
-        "update.downloadStarted" to "Baixando a atualização…",
+        "update.downloadStarted" to "Baixando a atualização. O instalador abrirá ao terminar.",
         "update.permissionDenied" to "Permissão para instalar a atualização não concedida.",
         "update.installerError" to "Não foi possível abrir o instalador do Android.",
         "external.openError" to "Não foi possível abrir o link externo.",
@@ -32,6 +35,9 @@ object AndroidLanguage {
     )
 
     private val english = mapOf(
+        "update.available" to "New EzDeck update",
+        "update.offer" to "Version {version} is available. After downloading, the installer will open for you to confirm the update.",
+        "update.install" to "Update",
         "update.downloadCheck" to "Could not verify the download.",
         "update.downloadError" to "Could not download the update.",
         "update.fileMissing" to "The update file is not available.",
@@ -45,7 +51,7 @@ object AndroidLanguage {
         "update.settings" to "Open settings",
         "update.downloadTitle" to "EzDeck update",
         "update.downloadDescription" to "Downloading version {version}",
-        "update.downloadStarted" to "Downloading update…",
+        "update.downloadStarted" to "Downloading the update. The installer will open when ready.",
         "update.permissionDenied" to "Permission to install the update was not granted.",
         "update.installerError" to "Could not open the Android installer.",
         "external.openError" to "Could not open the external link.",

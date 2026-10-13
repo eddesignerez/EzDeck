@@ -30,3 +30,15 @@ EZDECK_RELEASE_KEY_PASSWORD=...
 ```
 
 Nenhuma keystore, senha ou APK de release deve ser versionado.
+
+## Atualização pelo GitHub
+
+O APK consulta a última release estável ao abrir, mesmo sem conexão com o host
+Windows. A consulta usa o endereço público do repositório, sem token da API,
+e uma falha de internet não impede o uso na rede local.
+
+Após escolher Atualizar e conceder a permissão de instalação, o download
+autorizado é acompanhado mesmo se a Activity for recriada. Ao concluir, o
+APK verifica o pacote, a versão e a assinatura antes de abrir o instalador
+do Android. Se o app estiver em segundo plano, continua ao voltar para ele.
+A confirmação final pertence ao sistema Android; não há instalação silenciosa.
