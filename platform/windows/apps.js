@@ -471,6 +471,11 @@ export function createWindowsIconService({ listInstalledApps, listAppProcesses, 
         app = running.find(item => normalize(item.name) === key && item.path);
       }
       if (!app || !app.path || app.icon === false) return null;
+      if (key === "ezdeck" && !app.iconSource) {
+        // The host owns this asset. A network request cannot select a file.
+        const ownIcon = join(import.meta.dirname, "..", "..", "ezdeck.ico");
+        try { if ((await stat(ownIcon)).isFile()) app = { ...app, iconSource: ownIcon }; } catch {}
+      }
       const cachedFile = await diskCachePath(app, key);
       // Um scan novo pode corrigir a fonte sem mudar o nome do aplicativo.
       // Não manter o ícone do runtime após descobrir o ICO do atalho.

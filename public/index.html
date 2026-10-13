@@ -978,7 +978,14 @@
     <div class="drawer-body" id="obspanel"></div>
   </aside>
 
-<script src="/i18n-extra.js"></script><script src="/mobile-i18n.js?v=20260914-i18n"></script><script>
+<style>
+  .native-app-menu{max-width:calc(100vw - 32px);max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain;border:1px solid var(--edge);border-radius:14px;padding:12px;background:rgba(24,26,38,.97);color:var(--ink)}
+  .native-app-menu::backdrop{background:rgba(0,0,0,.55)}
+  .native-app-menu>button{display:block;margin:0 0 10px auto;min-height:44px;padding:8px 16px;border:1px solid var(--edge);border-radius:10px;background:var(--glass);color:var(--ink)}
+  html[data-theme="light"] .native-app-menu{background:#fff}
+  .native-app-menu>button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+<script src="/native-menu-client.js"></script><script src="/i18n-extra.js"></script><script src="/mobile-i18n.js?v=20260914-i18n"></script><script>
 (() => {
   "use strict";
 
@@ -2295,6 +2302,10 @@
       window.addEventListener("pointerup", endDeck, true);
       window.addEventListener("pointercancel", endDeck, true);
       window.addEventListener("blur", endDeck);
+    });
+    if (window.EzDeckMenus) window.EzDeckMenus.bind(deck, function(){
+      if (gesture) endDeck({ type:"pointercancel", pointerId:gesture.pid });
+      suppressClickUntil = Date.now() + 800;
     });
   }
 

@@ -3,7 +3,7 @@ Dim shell, fs, root, script, link, destination
 Set shell = CreateObject("WScript.Shell")
 Set fs = CreateObject("Scripting.FileSystemObject")
 root = fs.GetParentFolderName(WScript.ScriptFullName)
-For Each destination In Array(fs.BuildPath(root, "EzDeck.lnk"), fs.BuildPath(shell.SpecialFolders("Desktop"), "EzDeck.lnk"))
+For Each destination In Array(fs.BuildPath(root, "EzDeck.lnk"), fs.BuildPath(shell.SpecialFolders("Desktop"), "EzDeck.lnk"), fs.BuildPath(shell.SpecialFolders("Programs"), "EzDeck.lnk"))
   If Not fs.FileExists(destination) Then
     Set link = shell.CreateShortcut(destination)
     link.TargetPath = fs.BuildPath(shell.ExpandEnvironmentStrings("%SystemRoot%"), "System32\wscript.exe")
