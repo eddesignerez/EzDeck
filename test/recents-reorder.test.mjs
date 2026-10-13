@@ -3,6 +3,26 @@ import assert from "node:assert/strict";
 import { chromium } from "playwright";
 import { startServer } from "../server.js";
 
+test("versão do APK aparece somente em Apps Abertos, inclusive após voltar à primeira tela", async t => {
+  const server=await startServer({port:0,config:{pinned:[]},obs:null,platform:{
+    appTools:{listInstalledApps:async()=>[],listAppProcesses:async()=>[{name:'Editor',pid:42}]},
+    iconService:{getIconPng:async()=>null},actions:{activateApp:async()=>{}},
+  }});
+  const browser=await chromium.launch({headless:true,channel:process.platform==='win32'?'msedge':undefined});
+  t.after(async()=>{await browser.close();await server.close()});
+  const page=await browser.newPage({viewport:{width:900,height:405},hasTouch:true});
+  await page.addInitScript(()=>{window.EzDeckAndroid={appVersion:()=> '0.2.13',handlesUpdates:()=>true}});
+  await page.goto(`http://127.0.0.1:${server.port}/`);
+  await page.waitForFunction(()=>document.querySelector('#appVersion')?.textContent==='0.2.13');
+  assert.equal(await page.locator('#appVersion').isVisible(),false);
+  await page.locator('#vdots .d').nth(1).click();
+  await page.waitForFunction(()=>document.body.classList.contains('is-recents')&&!document.body.classList.contains('swiping'));
+  assert.equal(await page.locator('#appVersion').isVisible(),true);
+  await page.locator('#vdots .d').nth(0).click();
+  await page.waitForFunction(()=>!document.body.classList.contains('is-recents')&&!document.body.classList.contains('swiping'));
+  assert.equal(await page.locator('#appVersion').isVisible(),false);
+});
+
 test("segurar por 275ms inicia o arraste; toque curto e deslize não reorganizam", async t => {
   const running = Array.from({ length:8 }, (_, i) => ({ name:`App ${i}`, pid:100 + i }));
   let calls = 0;
