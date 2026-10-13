@@ -149,13 +149,13 @@ test("lista longa mantém título na tela, botão livre e rolagem horizontal por
       await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
       await page.waitForFunction(() => document.querySelector("#deck").scrollLeft > 80);
       assert.equal(await page.evaluate(() => document.body.classList.contains("is-recents")), true, "rolar a lista não deve trocar de tela");
+      assert.equal(await page.locator("#appVersion").isVisible(), true, "a versão deve aparecer em Apps Abertos");
       await page.screenshot({ path: `.test-artifacts/recents-fixed-${viewport.width}x${viewport.height}.png` });
       await page.locator("#vdots .d").nth(0).click();
       await page.waitForFunction(() => !document.body.classList.contains("is-recents") && !document.body.classList.contains("swiping"));
       const button = await page.locator("#addApps").boundingBox();
       assert.ok(button.y > viewport.height / 2, "+ APP deve manter a posição inferior na primeira tela");
-      const version = await page.locator("#appVersion").boundingBox();
-      assert.ok(button.y + button.height <= version.y, "o botão não deve sobrepor a versão na base da primeira tela");
+      assert.equal(await page.locator("#appVersion").isVisible(), false, "a versão deve ficar oculta na primeira tela");
       await page.screenshot({ path: `.test-artifacts/recents-regression-${viewport.width}x${viewport.height}.png` });
     } finally { await page.close(); }
   }
