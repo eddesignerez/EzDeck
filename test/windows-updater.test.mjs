@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createWindowsUpdater, newerVersion, stableVersion } from '../platform/windows/updater.js';
+import { createWindowsUpdater, newerVersion, stableVersion, windowsInstallerName } from '../platform/windows/updater.js';
 import { chromium } from 'playwright';
 import { startServer } from '../server.js';
 import { createAutomaticWindowsUpdater } from '../platform/windows/automatic-updater.js';
@@ -19,8 +19,8 @@ async function fixture(t, overrides = {}) {
   const fetcher = async url => {
     requests.push(url);
     if (url.endsWith('/releases/latest')) return new Response(null, {status:302,headers:{location:'https://github.com/eddesignerez/EzDeck/releases/tag/v0.2.13'}});
-    if (url.endsWith('/SHA256SUMS.txt')) return new Response(`${hash}  EzDeck-Setup.exe\n`);
-    if (url.endsWith('/EzDeck-Setup.exe')) return new Response(bytes);
+    if (url.endsWith('/SHA256SUMS.txt')) return new Response(`${hash}  EzDeck0213-Setup.exe\n${hash}  EzDeck-Setup.exe\n`);
+    if (url.endsWith('/EzDeck0213-Setup.exe')) return new Response(bytes);
     throw Error('Unexpected URL');
   };
   const updater = createWindowsUpdater({current:'0.2.12', root:directory, directory, fetcher, launch:async args => {launches.push(args)}, ...overrides});
@@ -34,6 +34,7 @@ test('Windows updater compares stable versions numerically and rejects injected 
   assert.equal(newerVersion('0.10.0','0.9.9'), true);
   assert.equal(newerVersion('0.2.12','0.2.12'), false);
   assert.equal(newerVersion('0.2.11','0.2.12'), false);
+  assert.equal(windowsInstallerName('0.2.15'), 'EzDeck0215-Setup.exe');
 });
 
 test('startup check does not download or launch an installer and shares concurrent checks', async t => {
@@ -63,14 +64,14 @@ test('concurrent install requests cannot prepare or launch two installers', asyn
   const f = await fixture(t);
   const results = await Promise.allSettled([f.updater.install(), f.updater.install()]);
   assert.equal(results.filter(x => x.status === 'fulfilled').length,1);
-  assert.equal(f.requests.filter(url => url.endsWith('/EzDeck-Setup.exe')).length,1);
+  assert.equal(f.requests.filter(url => url.endsWith('/EzDeck0213-Setup.exe')).length,1);
 });
 
 test('corrupt download never launches and permits a retry', async t => {
   let downloads=0;
   const f = await fixture(t, {fetcher:async url => {
     if(url.endsWith('/latest')) return new Response(null,{status:302,headers:{location:'/eddesignerez/EzDeck/releases/tag/v0.2.13'}});
-    if(url.endsWith('SHA256SUMS.txt')) return new Response(`${'0'.repeat(64)}  EzDeck-Setup.exe`);
+    if(url.endsWith('SHA256SUMS.txt')) return new Response(`${'0'.repeat(64)}  EzDeck0213-Setup.exe`);
     downloads++; return new Response(Buffer.alloc(2048));
   }});
   await assert.rejects(f.updater.install(),/Nenhum instalador/);

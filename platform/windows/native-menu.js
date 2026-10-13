@@ -48,7 +48,7 @@ public static class EzDeckNativeMenu {
   static bool AllowedPopup(IntPtr hwnd) {
     if(hwnd==IntPtr.Zero || !IsWindowVisible(hwnd) || !Shell(hwnd)) return false;
     string cls=Class(hwnd);
-    return cls=="DV2ControlHost" || cls=="Windows.UI.Core.CoreWindow" || cls=="Xaml_WindowedPopupClass" || cls=="#32768";
+    return cls=="DV2ControlHost" || cls=="Windows.UI.Core.CoreWindow" || cls=="Xaml_WindowedPopupClass" || cls=="XamlExplorerHostIslandWindow_WASDK" || cls=="#32768";
   }
   static bool Bounds(out Rect rect) {
     rect=new Rect();
@@ -79,20 +79,22 @@ public static class EzDeckNativeMenu {
     foreach(AutomationElement button in buttons) {
       try {
         string id=button.Current.AutomationId??"",text=button.Current.Name??"";
+        var parent=TreeWalker.ControlViewWalker.GetParent(button);
+        if(parent==null || !String.Equals(parent.Current.AutomationId,"TaskbarFrame",StringComparison.OrdinalIgnoreCase)) continue;
         if(!String.IsNullOrEmpty(identity) && (String.Equals(id,"Appid:"+identity,StringComparison.OrdinalIgnoreCase) || String.Equals(id,identity,StringComparison.OrdinalIgnoreCase))) exact.Add(button);
-        if(String.Equals(text,name,StringComparison.OrdinalIgnoreCase) || text.StartsWith(name+",",StringComparison.OrdinalIgnoreCase)) names.Add(button);
+        if(String.Equals(text,name,StringComparison.OrdinalIgnoreCase) || text.StartsWith(name+",",StringComparison.OrdinalIgnoreCase) || text.StartsWith(name+" - ",StringComparison.OrdinalIgnoreCase) || text.StartsWith(name+" fixado",StringComparison.OrdinalIgnoreCase)) names.Add(button);
       } catch(ElementNotAvailableException) { }
     }
     var matches=exact.Count>0 ? exact : names;
     if(matches.Count!=1) throw new InvalidOperationException("Não foi possível identificar um único ícone na barra de tarefas");
     var box=matches[0].Current.BoundingRectangle;
     if(matches[0].Current.IsOffscreen || box.IsEmpty) throw new InvalidOperationException("Ícone não está visível na barra de tarefas");
-    var before=new HashSet<IntPtr>(); EnumWindows(delegate(IntPtr h,IntPtr d){ if(AllowedPopup(h)) before.Add(h); return true; },IntPtr.Zero);
+    var before=new HashSet<IntPtr>(); EnumWindows(delegate(IntPtr h,IntPtr d){ Rect r; if(AllowedPopup(h) && GetWindowRect(h,out r) && r.Right-r.Left>=40 && r.Bottom-r.Top>=20) before.Add(h); return true; },IntPtr.Zero);
     previous=GetForegroundWindow(); selectedPid=pid;
     Mouse((int)(box.Left+box.Width/2),(int)(box.Top+box.Height/2),0x0008,0x0010);
     for(int n=0;n<24;n++) {
       IntPtr found=IntPtr.Zero;
-      EnumWindows(delegate(IntPtr h,IntPtr d){ if(!before.Contains(h) && AllowedPopup(h)) found=h; return true; },IntPtr.Zero);
+      EnumWindows(delegate(IntPtr h,IntPtr d){ if(AllowedPopup(h) && (!before.Contains(h) || h==GetForegroundWindow())) found=h; return true; },IntPtr.Zero);
       if(found!=IntPtr.Zero) { popup=found; opened=DateTime.UtcNow; return Capture(); }
       Thread.Sleep(50);
     }

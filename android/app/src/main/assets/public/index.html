@@ -3590,7 +3590,7 @@
           if (cmpVer(rel.tag, apkNow) > 0){
             showUpBanner(t("update.available"),
               t("update.version", { version: rel.tag }),
-              rel.apkUrl || "https://github.com/eddesignerez/EzDeck/releases/latest/download/ezdeck.apk",
+              rel.apkUrl || "https://github.com/eddesignerez/EzDeck/releases/download/" + rel.tag + "/EzDeck" + rel.tag.replace(/^v/, "").replaceAll(".", "") + ".apk",
               rel.tag);
           }
           return;

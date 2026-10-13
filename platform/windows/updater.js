@@ -16,6 +16,11 @@ export function newerVersion(remote, current) {
   for (let i = 0; i < 3; i++) if (aa[i] !== bb[i]) return aa[i] > bb[i];
   return false;
 }
+export function windowsInstallerName(version) {
+  const stable = stableVersion(version);
+  if (!stable) throw Error('Versão de atualização inválida');
+  return `EzDeck${stable.replaceAll('.', '')}-Setup.exe`;
+}
 
 async function githubFetch(url, { fetcher, signal }) {
   for (let n = 0; n < 6; n++) {
@@ -74,13 +79,14 @@ export function createWindowsUpdater({ current, root, directory, fetcher = fetch
       // Release metadata is public, bounded and never executable.
       let sumText = '';
       for await (const chunk of sums.body) { sumText += Buffer.from(chunk).toString('utf8'); if (sumText.length > 16384) throw Error('Verificação da atualização inválida'); }
-      const lines = sumText.split(/\r?\n/).map(line => line.match(/^([a-fA-F0-9]{64})\s+\*?EzDeck-Setup\.exe\s*$/)).filter(Boolean);
+      const filename = windowsInstallerName(latest);
+      const lines = sumText.split(/\r?\n/).map(line => line.match(/^([a-fA-F0-9]{64})\s+\*?(EzDeck\d+-Setup\.exe)\s*$/)).filter(match => match && match[2] === filename);
       if (lines.length !== 1) throw Error('Verificação da atualização indisponível');
       const expected = lines[0][1].toLowerCase();
       await mkdir(directory, { recursive: true });
       folder = await mkdtemp(join(directory, 'download-'));
-      const installer = join(folder, 'EzDeck-Setup.exe');
-      const response = await githubFetch(`${base}EzDeck-Setup.exe`, { fetcher, signal: controller.signal });
+      const installer = join(folder, filename);
+      const response = await githubFetch(`${base}${filename}`, { fetcher, signal: controller.signal });
       if (Number(response.headers.get('content-length')) > MAX_EXE) throw Error('Atualização maior que o permitido');
       const file = await open(installer, 'wx');
       const hash = createHash('sha256'); let size = 0, prefix = Buffer.alloc(0);
@@ -107,7 +113,7 @@ export function createWindowsUpdater({ current, root, directory, fetcher = fetch
       if (!launch && resolve(process.execPath).toLowerCase() !== resolve(root, 'runtime', 'node.exe').toLowerCase()) throw Error('A atualização precisa ser iniciada pelo EzDeck instalado');
       // Same process-scoped policy as the trusted desktop launcher. This does
       // not change machine policy or suppress Windows installer security UI.
-      const args = ['-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File', join(root, 'windows', 'apply-update.ps1'), '-Installer', staged.installer, '-ExpectedHash', staged.expected, '-HostPid', String(process.pid), '-DesktopPid', String(process.ppid), '-InstallRoot', resolve(root)];
+      const args = ['-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File', join(root, 'windows', 'apply-update.ps1'), '-Installer', staged.installer, '-ExpectedHash', staged.expected, '-HostPid', String(process.pid), '-DesktopPid', String(process.ppid), '-InstallRoot', resolve(root), '-Version', staged.version];
       const child = launch ? await launch(args) : spawn('powershell.exe', args, { detached: true, windowsHide: true, stdio: 'ignore' });
       if (!launch) await new Promise((resolve, reject) => { child.once('spawn', resolve); child.once('error', reject); });
       child?.unref?.(); status = 'installing';

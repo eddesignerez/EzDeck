@@ -39,7 +39,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: EzDeck-Setup-unsigned
-          path: dist/EzDeck-Setup.exe
+          path: dist/EzDeck*-Setup.exe
           if-no-files-found: error
       - name: Submit Windows installer to SignPath
         if: inputs.sign_windows
@@ -55,7 +55,19 @@ jobs:
       - name: Generate checksum of signed installer
         if: inputs.sign_windows
         shell: pwsh
-        run: ./windows/write-update-checksum.ps1 -Installer dist/signed/EzDeck-Setup.exe
+        run: ./windows/prepare-compatibility-assets.ps1 -Directory dist/signed
+      - name: Prepare compatibility download for older Windows installations
+        if: ${{ !inputs.sign_windows }}
+        shell: pwsh
+        run: ./windows/prepare-compatibility-assets.ps1 -Directory dist
+      - name: Upload legacy Windows update filename
+        uses: actions/upload-artifact@v4
+        with:
+          name: EzDeck-Setup-compatibility
+          path: |
+            dist/EzDeck-Setup.exe
+            dist/signed/EzDeck-Setup.exe
+          if-no-files-found: ignore
       - name: Upload signed Windows installer
         if: inputs.sign_windows
         uses: actions/upload-artifact@v4
@@ -112,9 +124,18 @@ jobs:
         shell: pwsh
         run: ./gradlew.bat testReleaseUnitTest assembleRelease --console=plain
         working-directory: android
+      - name: Name Android release APK
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version -replace '\.', ''
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item android/app/build/outputs/apk/release/app-release.apk "dist/EzDeck$version.apk"
+          if ($version -eq '0215') { Copy-Item "dist/EzDeck$version.apk" dist/ezdeck.apk }
       - name: Upload Android release APK
         uses: actions/upload-artifact@v4
         with:
           name: EzDeck-Android-release
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: |
+            dist/EzDeck*.apk
+            dist/ezdeck.apk
           if-no-files-found: error

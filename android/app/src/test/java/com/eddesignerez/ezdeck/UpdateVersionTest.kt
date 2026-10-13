@@ -29,4 +29,10 @@ class UpdateVersionTest {
         assertTrue(UpdateVersion.releaseTag("v0.2.7") == "v0.2.7")
         assertTrue(UpdateVersion.releaseTag("latest") == null)
     }
+
+    @Test
+    fun apkAssetNameFollowsPublishedVersion() {
+        assertTrue(UpdateVersion.apkAssetName("0.2.15") == "EzDeck0215.apk")
+        assertTrue(UpdateVersion.apkAssetName("latest") == null)
+    }
 }
