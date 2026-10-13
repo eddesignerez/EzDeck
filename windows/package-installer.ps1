@@ -99,6 +99,7 @@ internal static class EzDeckUninstaller {
     try {
       StopInstalledHost();
       RemoveLink(Environment.SpecialFolder.DesktopDirectory, "EzDeck.lnk");
+      RemoveLink(Environment.SpecialFolder.Programs, "EzDeck.lnk");
       RemoveLink(Environment.SpecialFolder.ApplicationData, "Microsoft", "Windows", "Start Menu", "Programs", "Startup", "EzDeck.lnk");
       Registry.CurrentUser.DeleteSubKeyTree(RegistryPath, false);
       var command = "/c timeout /t 1 /nobreak > nul & rmdir /s /q \"" + Target + "\"";

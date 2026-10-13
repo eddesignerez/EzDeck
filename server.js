@@ -573,6 +573,23 @@ export function makeApp(deps = {}) {
       res.end(JSON.stringify({ ok: false, error: "acesso negado" }));
       return;
     }
+    if (url.pathname === "/api/native-menu" && req.method === "POST") {
+      const menu = deps.remoteMenu || platform.remoteMenu;
+      if (!menu) { respondError(503, { error: "Menu do Windows indisponível" }); return; }
+      const owner = tokenFromCookie(req.headers.cookie) || (isLoopback(ipOf) ? "local-desktop" : null);
+      if (!owner) { respondError(401, { error: "Conecte o dispositivo novamente" }); return; }
+      readBody(req, res).then(async body => {
+        if (body === BODY_TOO_BIG) return;
+        if (!body || body === BODY_INVALID) { respondError(400, { error: "corpo inválido" }); return; }
+        const { action, name, session, x, y } = body;
+        if (!["open", "frame", "tap", "dismiss"].includes(action)) { respondError(400, { error: "Ação inválida" }); return; }
+        try {
+          const result = action === "open" ? await menu.open(owner, name) : action === "tap" ? await menu.tap(owner, session, x, y) : await menu[action](owner, session);
+          ok({ ok: true, ...result });
+        } catch { respondError(409, { error: "O menu deste aplicativo não está disponível. Confira a barra de tarefas do Windows." }); }
+      }).catch(err => fail(res, err));
+      return;
+    }
     if (url.pathname === "/api/apps") {
       Promise.resolve()
         .then(() => readConfig())
@@ -1267,6 +1284,7 @@ export async function startServer(arg = {}) {
     closed = true;
     stopHeartbeat();
     feed.close();
+    void (opts.remoteMenu || platform.remoteMenu)?.close?.();
     for (const ws of wss.clients) ws.terminate();
     try { wss.close(); } catch (e) {}
     server.close(e => e ? reject(e) : resolve());

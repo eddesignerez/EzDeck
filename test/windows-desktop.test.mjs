@@ -81,13 +81,15 @@ test("ícone corrigido do atalho substitui cache antigo do runtime sem mudar o n
   const dependencies = { listInstalledApps:async () => [app], cacheDir,
     convertIcon:async (source, output) => { sources.push(source); await writeFile(output, source); } };
   const icons = createWindowsIconService(dependencies);
-  assert.equal((await icons.getIconPng("EzDeck")).toString(), app.targetPath);
+  const bundledSource = (await icons.getIconPng("EzDeck")).toString();
+  assert.match(bundledSource.replaceAll("\\", "/"), /\/ezdeck\.ico$/);
+  assert.notEqual(bundledSource, app.targetPath, "EzDeck nunca deve usar a logo do wscript");
   app = { ...app, iconSource:"C:/EzDeck/ezdeck.ico" };
   assert.equal((await icons.getIconPng("EzDeck")).toString(), app.iconSource);
   assert.equal((await icons.getIconPng("EzDeck")).toString(), app.iconSource);
   const restarted = createWindowsIconService({ ...dependencies, convertIcon:async () => { throw Error("cache correto já existe"); } });
   assert.equal((await restarted.getIconPng("EzDeck")).toString(), app.iconSource);
-  assert.deepEqual(sources, [app.targetPath, app.iconSource]);
+  assert.deepEqual(sources, [bundledSource, app.iconSource]);
 });
 
 test("Explorer sem atalho usa ícone do processo local, nunca caminho recebido como nome", async () => {
