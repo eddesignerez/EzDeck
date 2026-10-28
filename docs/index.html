@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EzDeck - Remote Windows Control</title>
+    <meta name="description" content="Transform your phone or tablet into a Stream Deck-style control panel for your Windows computer on the same local network.">
+    <meta name="theme-color" content="#3b82f6">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #1e40af;
+            --secondary: #8b5cf6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+
+            --bg: #ffffff;
+            --bg-alt: #f9fafb;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #111827;
+                --bg-alt: #1f2937;
+                --text: #f3f4f6;
+                --text-light: #d1d5db;
+                --border: #374151;
+                --shadow: rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 1rem;
+            box-shadow: 0 4px 6px var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .language-selector {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .lang-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .lang-btn:hover, .lang-btn.active {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .lang-btn.active {
+            background: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .hero {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-light);
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 3rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.6);
+        }
+
+        .btn-secondary {
+            background: var(--bg-alt);
+            color: var(--text);
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 4rem;
+        }
+
+        .feature-card {
+            background: var(--bg-alt);
+            padding: 2rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--border);
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px var(--shadow);
+            border-color: var(--primary);
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card h3 {
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        .feature-card p {
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        .specs {
+            background: var(--bg-alt);
+            padding: 3rem 2rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--border);
+            margin-bottom: 4rem;
+        }
+
+        .specs h2 {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+        }
+
+        .spec-item {
+            text-align: center;
+        }
+
+        .spec-item strong {
+            display: block;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .spec-item p {
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        .installation {
+            background: var(--bg-alt);
+            padding: 3rem 2rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--border);
+            margin-bottom: 4rem;
+        }
+
+        .installation h2 {
+            margin-bottom: 2rem;
+        }
+
+        .installation-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+        }
+
+        .step {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .step-number {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        .step-content h3 {
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+
+        .step-content p {
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        .supported-languages {
+            background: var(--bg-alt);
+            padding: 3rem 2rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--border);
+            margin-bottom: 4rem;
+        }
+
+        .supported-languages h2 {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .language-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .language-badge {
+            background: var(--bg);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            border: 1px solid var(--border);
+            transition: all 0.3s;
+        }
+
+        .language-badge:hover {
+            border-color: var(--primary);
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        .language-badge strong {
+            display: block;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+
+        footer {
+            background: var(--bg-alt);
+            padding: 2rem 1rem;
+            text-align: center;
+            border-top: 1px solid var(--border);
+            color: var(--text-light);
+            margin-top: 4rem;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .footer-links a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 1.5rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+
+            .header-content {
+                flex-direction: column;
+            }
+
+            .language-selector {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        [data-lang] {
+            display: none;
+        }
+
+        [data-lang].active {
+            display: inline;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            color: var(--text);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="logo">🎮 EzDeck</div>
+            <div class="language-selector" id="languageSelector"></div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero">
+            <h1 data-text="title" class="active" data-lang="pt">EzDeck</h1>
+            <h1 data-text="title" data-lang="en" class="hidden">EzDeck</h1>
+
+            <p data-text="subtitle" class="active" data-lang="pt">Transforme seu smartphone em um painel de controle Stream Deck para Windows. Controle aplicativos e atalhos da sua rede local com um toque.</p>
+            <p data-text="subtitle" data-lang="en" class="hidden">Transform your smartphone into a Stream Deck-style control panel for Windows. Control apps and shortcuts from your local network with a tap.</p>
+            <p data-text="subtitle" data-lang="es" class="hidden">Transforma tu smartphone en un panel de control tipo Stream Deck para Windows. Controla aplicaciones y atajos desde tu red local con un toque.</p>
+            <p data-text="subtitle" data-lang="ja" class="hidden">スマートフォンをWindowsのStreamDeckスタイルコントロールパネルに変換します。タップでローカルネットワークからアプリとショートカットを制御します。</p>
+            <p data-text="subtitle" data-lang="it" class="hidden">Trasforma il tuo smartphone in un pannello di controllo in stile Stream Deck per Windows. Controlla app e scorciatoie dalla tua rete locale con un tocco.</p>
+            <p data-text="subtitle" data-lang="fr" class="hidden">Transformez votre smartphone en un panneau de contrôle de style Stream Deck pour Windows. Contrôlez les applications et les raccourcis de votre réseau local d'un simple toucher.</p>
+            <p data-text="subtitle" data-lang="de" class="hidden">Verwandeln Sie Ihr Smartphone in ein Stream Deck-ähnliches Bedienfeld für Windows. Steuern Sie Apps und Verknüpfungen aus Ihrem lokalen Netzwerk mit einem Fingertipp.</p>
+            <p data-text="subtitle" data-lang="zh" class="hidden">将您的智能手机变成Windows的Stream Deck风格控制面板。通过触摸从本地网络控制应用和快捷方式。</p>
+            <p data-text="subtitle" data-lang="vi" class="hidden">Biến smartphone của bạn thành bảng điều khiển kiểu Stream Deck cho Windows. Kiểm soát ứng dụng và phím tắt từ mạng cục bộ của bạn bằng một cú chạm.</p>
+            <p data-text="subtitle" data-lang="ko" class="hidden">스마트폰을 Windows용 Stream Deck 스타일 컨트롤 패널로 변환하세요. 로컬 네트워크에서 앱과 바로 가기를 터치로 제어합니다.</p>
+            <p data-text="subtitle" data-lang="ar" class="hidden">حول هاتفك الذكي إلى لوحة تحكم على طراز Stream Deck لنظام Windows. تحكم في التطبيقات والاختصارات من شبكتك المحلية بلمسة واحدة.</p>
+
+            <div class="cta-buttons">
+                <a href="https://github.com/eddesignerez/EzDeck/releases" class="btn btn-primary" data-text="downloadBtn" data-lang="pt">Baixar EzDeck</a>
+                <a href="https://github.com/eddesignerez/EzDeck" class="btn btn-secondary" data-text="viewBtn" data-lang="pt">Ver no GitHub</a>
+            </div>
+            <div class="cta-buttons" class="hidden">
+                <a href="https://github.com/eddesignerez/EzDeck/releases" class="btn btn-primary" data-text="downloadBtn" data-lang="en">Download EzDeck</a>
+                <a href="https://github.com/eddesignerez/EzDeck" class="btn btn-secondary" data-text="viewBtn" data-lang="en">View on GitHub</a>
+            </div>
+        </section>
+
+        <!-- Features -->
+        <section class="features">
+            <div class="feature-card">
+                <div class="feature-icon">📱</div>
+                <h3 data-text="feature1Title" data-lang="pt">Controle via Smartphone</h3>
+                <h3 data-text="feature1Title" data-lang="en" class="hidden">Mobile Control</h3>
+                <p data-text="feature1Desc" data-lang="pt">Use seu Android, iPhone, iPad ou navegador para controlar o Windows remotamente na mesma rede.</p>
+                <p data-text="feature1Desc" data-lang="en" class="hidden">Use your Android, iPhone, iPad, or browser to remotely control Windows on the same network.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🎛️</div>
+                <h3 data-text="feature2Title" data-lang="pt">Painel Customizável</h3>
+                <h3 data-text="feature2Title" data-lang="en" class="hidden">Customizable Panel</h3>
+                <p data-text="feature2Desc" data-lang="pt">Configure aplicativos, atalhos e botões personalizados conforme sua preferência.</p>
+                <p data-text="feature2Desc" data-lang="en" class="hidden">Configure apps, shortcuts, and custom buttons according to your preference.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3 data-text="feature3Title" data-lang="pt">Seguro com PIN</h3>
+                <h3 data-text="feature3Title" data-lang="en" class="hidden">Secure with PIN</h3>
+                <p data-text="feature3Desc" data-lang="pt">Autenticação segura com PIN para proteger seu dispositivo Windows na rede local.</p>
+                <p data-text="feature3Desc" data-lang="en" class="hidden">Secure authentication with PIN to protect your Windows device on the local network.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🌐</div>
+                <h3 data-text="feature4Title" data-lang="pt">Sem Internet Necessário</h3>
+                <h3 data-text="feature4Title" data-lang="en" class="hidden">No Internet Required</h3>
+                <p data-text="feature4Desc" data-lang="pt">Funciona completamente na rede local, sem depender de conexão com a internet.</p>
+                <p data-text="feature4Desc" data-lang="en" class="hidden">Works completely on your local network, no internet connection required.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3 data-text="feature5Title" data-lang="pt">Instantâneo</h3>
+                <h3 data-text="feature5Title" data-lang="en" class="hidden">Instant Response</h3>
+                <p data-text="feature5Desc" data-lang="pt">Resposta imediata com WebSocket para uma experiência fluida e responsiva.</p>
+                <p data-text="feature5Desc" data-lang="en" class="hidden">Instant response with WebSocket for a smooth and responsive experience.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">📦</div>
+                <h3 data-text="feature6Title" data-lang="pt">Fácil de Instalar</h3>
+                <h3 data-text="feature6Title" data-lang="en" class="hidden">Easy to Install</h3>
+                <p data-text="feature6Desc" data-lang="pt">Instalador simples que já inclui tudo que você precisa para começar.</p>
+                <p data-text="feature6Desc" data-lang="en" class="hidden">Simple installer that includes everything you need to get started.</p>
+            </div>
+        </section>
+
+        <!-- Technical Specs -->
+        <section class="specs">
+            <h2 class="section-title" data-text="techTitle" data-lang="pt">Especificações Técnicas</h2>
+            <h2 class="section-title hidden" data-text="techTitle" data-lang="en">Technical Specifications</h2>
+
+            <div class="specs-grid">
+                <div class="spec-item">
+                    <strong>Windows</strong>
+                    <p>Windows 10 ou superior</p>
+                </div>
+                <div class="spec-item">
+                    <strong>Node.js</strong>
+                    <p>Versão 20+</p>
+                </div>
+                <div class="spec-item">
+                    <strong>Comunicação</strong>
+                    <p>HTTP + WebSocket</p>
+                </div>
+                <div class="spec-item">
+                    <strong>Compatibilidade</strong>
+                    <p>Android, iOS, PWA</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Installation -->
+        <section class="installation">
+            <h2 class="section-title" data-text="installTitle" data-lang="pt">Como Começar</h2>
+            <h2 class="section-title hidden" data-text="installTitle" data-lang="en">Getting Started</h2>
+
+            <div class="installation-steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3 data-text="step1Title" data-lang="pt">Download</h3>
+                        <p data-text="step1Desc" data-lang="pt">Baixe a versão mais recente do EzDeck-Setup.exe</p>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3 data-text="step2Title" data-lang="pt">Instale</h3>
+                        <p data-text="step2Desc" data-lang="pt">Execute o instalador e siga as instruções</p>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3 data-text="step3Title" data-lang="pt">Configure</h3>
+                        <p data-text="step3Desc" data-lang="pt">Adicione seus aplicativos e atalhos</p>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h3 data-text="step4Title" data-lang="pt">Conecte</h3>
+                        <p data-text="step4Desc" data-lang="pt">Abra no seu celular e digite o PIN</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Supported Languages -->
+        <section class="supported-languages">
+            <h2 class="section-title" data-text="langTitle" data-lang="pt">Idiomas Suportados</h2>
+            <h2 class="section-title hidden" data-text="langTitle" data-lang="en">Supported Languages</h2>
+
+            <div class="language-grid">
+                <div class="language-badge">
+                    <strong>🇧🇷 Português</strong>
+                    <span>Brazilian Portuguese</span>
+                </div>
+                <div class="language-badge">
+                    <strong>🇺🇸 English</strong>
+                    <span>English</span>
+                </div>
+                <div class="language-badge">
+                    <strong>🇪🇸 Español</strong>
+                    <span>Spanish</span>
+                </div>
+                <div class="language-badge">
+                    <strong>🇯🇵 日本語</strong>
+                    <span>Japanese</span>
+                </div>
+                <div class="language-badge">
+                    <strong>🇮🇹 Italiano</strong>
+                    <span>Italian</span>
+                </div>
+                <div class="language-badge">
+                    <strong>🇫🇷 Français</strong>
+                    <span>French</span>
+                </div>
+                <div class="language-badge">
+                    <strong>🇩🇪 Deutsch</strong>
+                    <span>German</span>
+                </div>
+                <div class="language-badge">
+                    <strong>🇨🇳 简体中文</strong>
+                    <span>Chinese Simplified</span>
+                </div>
+                <div class="language-badge">
+                    <strong>🇻🇳 Tiếng Việt</strong>
+                    <span>Vietnamese</span>
+                </div>
+                <div class="language-badge">
+                    <strong>🇰🇷 한국어</strong>
+                    <span>Korean</span>
+                </div>
+                <div class="language-badge">
+                    <strong>🇸🇦 العربية</strong>
+                    <span>Arabic</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="https://github.com/eddesignerez/EzDeck" data-text="footerGithub" data-lang="pt">GitHub</a>
+                <a href="https://github.com/eddesignerez/EzDeck/releases" data-text="footerReleases" data-lang="pt">Releases</a>
+                <a href="https://github.com/eddesignerez/EzDeck/issues" data-text="footerIssues" data-lang="pt">Issues</a>
+                <a href="https://github.com/eddesignerez/EzDeck/blob/main/LICENSE" data-text="footerLicense" data-lang="pt">Licença MIT</a>
+            </div>
+            <div class="divider"></div>
+            <p data-text="footerText" data-lang="pt">© 2024 EzDeck. Inspirado em Dokke. Feito com ❤️ para a comunidade.</p>
+            <p data-text="footerText" data-lang="en" class="hidden">© 2024 EzDeck. Inspired by Dokke. Made with ❤️ for the community.</p>
+        </div>
+    </footer>
+
+    <script>
+        const LANGUAGES = {
+            pt: { name: '🇧🇷 Português', active: true },
+            en: { name: '🇺🇸 English', active: false },
+            es: { name: '🇪🇸 Español', active: false },
+            ja: { name: '🇯🇵 日本語', active: false },
+            it: { name: '🇮🇹 Italiano', active: false },
+            fr: { name: '🇫🇷 Français', active: false },
+            de: { name: '🇩🇪 Deutsch', active: false },
+            zh: { name: '🇨🇳 中文', active: false },
+            vi: { name: '🇻🇳 Tiếng Việt', active: false },
+            ko: { name: '🇰🇷 한국어', active: false },
+            ar: { name: '🇸🇦 العربية', active: false }
+        };
+
+        const TRANSLATIONS = {
+            pt: {
+                downloadBtn: 'Baixar EzDeck',
+                viewBtn: 'Ver no GitHub',
+                feature1Title: 'Controle via Smartphone',
+                feature1Desc: 'Use seu Android, iPhone, iPad ou navegador para controlar o Windows remotamente na mesma rede.',
+                feature2Title: 'Painel Customizável',
+                feature2Desc: 'Configure aplicativos, atalhos e botões personalizados conforme sua preferência.',
+                feature3Title: 'Seguro com PIN',
+                feature3Desc: 'Autenticação segura com PIN para proteger seu dispositivo Windows na rede local.',
+                feature4Title: 'Sem Internet Necessário',
+                feature4Desc: 'Funciona completamente na rede local, sem depender de conexão com a internet.',
+                feature5Title: 'Instantâneo',
+                feature5Desc: 'Resposta imediata com WebSocket para uma experiência fluida e responsiva.',
+                feature6Title: 'Fácil de Instalar',
+                feature6Desc: 'Instalador simples que já inclui tudo que você precisa para começar.',
+                techTitle: 'Especificações Técnicas',
+                installTitle: 'Como Começar',
+                step1Title: 'Download',
+                step1Desc: 'Baixe a versão mais recente do EzDeck-Setup.exe',
+                step2Title: 'Instale',
+                step2Desc: 'Execute o instalador e siga as instruções',
+                step3Title: 'Configure',
+                step3Desc: 'Adicione seus aplicativos e atalhos',
+                step4Title: 'Conecte',
+                step4Desc: 'Abra no seu celular e digite o PIN',
+                langTitle: 'Idiomas Suportados',
+                footerGithub: 'GitHub',
+                footerReleases: 'Releases',
+                footerIssues: 'Issues',
+                footerLicense: 'Licença MIT',
+                footerText: '© 2024 EzDeck. Inspirado em Dokke. Feito com ❤️ para a comunidade.'
+            },
+            en: {
+                downloadBtn: 'Download EzDeck',
+                viewBtn: 'View on GitHub',
+                feature1Title: 'Mobile Control',
+                feature1Desc: 'Use your Android, iPhone, iPad, or browser to remotely control Windows on the same network.',
+                feature2Title: 'Customizable Panel',
+                feature2Desc: 'Configure apps, shortcuts, and custom buttons according to your preference.',
+                feature3Title: 'Secure with PIN',
+                feature3Desc: 'Secure authentication with PIN to protect your Windows device on the local network.',
+                feature4Title: 'No Internet Required',
+                feature4Desc: 'Works completely on your local network, no internet connection required.',
+                feature5Title: 'Instant Response',
+                feature5Desc: 'Instant response with WebSocket for a smooth and responsive experience.',
+                feature6Title: 'Easy to Install',
+                feature6Desc: 'Simple installer that includes everything you need to get started.',
+                techTitle: 'Technical Specifications',
+                installTitle: 'Getting Started',
+                step1Title: 'Download',
+                step1Desc: 'Download the latest version of EzDeck-Setup.exe',
+                step2Title: 'Install',
+                step2Desc: 'Run the installer and follow the instructions',
+                step3Title: 'Configure',
+                step3Desc: 'Add your applications and shortcuts',
+                step4Title: 'Connect',
+                step4Desc: 'Open on your mobile device and enter the PIN',
+                langTitle: 'Supported Languages',
+                footerGithub: 'GitHub',
+                footerReleases: 'Releases',
+                footerIssues: 'Issues',
+                footerLicense: 'MIT License',
+                footerText: '© 2024 EzDeck. Inspired by Dokke. Made with ❤️ for the community.'
+            },
+            es: {
+                downloadBtn: 'Descargar EzDeck',
+                viewBtn: 'Ver en GitHub',
+                feature1Title: 'Control Móvil',
+                feature1Desc: 'Usa tu Android, iPhone, iPad o navegador para controlar Windows remotamente en la misma red.',
+                feature2Title: 'Panel Personalizable',
+                feature2Desc: 'Configura aplicaciones, atajos y botones personalizados según tus preferencias.',
+                feature3Title: 'Seguro con PIN',
+                feature3Desc: 'Autenticación segura con PIN para proteger tu dispositivo Windows en la red local.',
+                feature4Title: 'Sin Internet Requerida',
+                feature4Desc: 'Funciona completamente en tu red local, sin conexión a internet requerida.',
+                feature5Title: 'Respuesta Instantánea',
+                feature5Desc: 'Respuesta inmediata con WebSocket para una experiencia fluida y receptiva.',
+                feature6Title: 'Fácil de Instalar',
+                feature6Desc: 'Instalador simple que incluye todo lo que necesitas para comenzar.',
+                techTitle: 'Especificaciones Técnicas',
+                installTitle: 'Cómo Empezar',
+                step1Title: 'Descargar',
+                step1Desc: 'Descarga la última versión de EzDeck-Setup.exe',
+                step2Title: 'Instalar',
+                step2Desc: 'Ejecuta el instalador y sigue las instrucciones',
+                step3Title: 'Configurar',
+                step3Desc: 'Agrega tus aplicaciones y atajos',
+                step4Title: 'Conectar',
+                step4Desc: 'Abre en tu dispositivo móvil e ingresa el PIN',
+                langTitle: 'Idiomas Soportados',
+                footerGithub: 'GitHub',
+                footerReleases: 'Versiones',
+                footerIssues: 'Problemas',
+                footerLicense: 'Licencia MIT',
+                footerText: '© 2024 EzDeck. Inspirado en Dokke. Hecho con ❤️ para la comunidad.'
+            },
+            ja: {
+                downloadBtn: 'EzDeckをダウンロード',
+                viewBtn: 'GitHubで表示',
+                feature1Title: 'モバイルコントロール',
+                feature1Desc: 'AndroidデバイスやiPhone、iPad、またはブラウザを使用してローカルネットワーク上のWindowsをリモートで制御します。',
+                feature2Title: 'カスタマイズ可能なパネル',
+                feature2Desc: 'アプリケーション、ショートカット、カスタムボタンをあなたの好みに合わせて設定できます。',
+                feature3Title: 'PINで安全',
+                feature3Desc: 'PINによるセキュアな認証でローカルネットワーク上のWindowsデバイスを保護します。',
+                feature4Title: 'インターネット不要',
+                feature4Desc: 'ローカルネットワーク上で完全に動作し、インターネット接続は必要ありません。',
+                feature5Title: '即座対応',
+                feature5Desc: 'WebSocketによる即座の応答でスムーズでレスポンシブな体験を実現します。',
+                feature6Title: '簡単インストール',
+                feature6Desc: '開始に必要なすべてが含まれたシンプルなインストーラーです。',
+                techTitle: '技術仕様',
+                installTitle: 'はじめに',
+                step1Title: 'ダウンロード',
+                step1Desc: 'EzDeck-Setup.exeの最新バージョンをダウンロードしてください',
+                step2Title: 'インストール',
+                step2Desc: 'インストーラーを実行し、指示に従ってください',
+                step3Title: '設定',
+                step3Desc: 'アプリケーションとショートカットを追加してください',
+                step4Title: '接続',
+                step4Desc: 'モバイルデバイスで開いてPINを入力してください',
+                langTitle: 'サポート言語',
+                footerGithub: 'GitHub',
+                footerReleases: 'リリース',
+                footerIssues: 'Issues',
+                footerLicense: 'MITライセンス',
+                footerText: '© 2024 EzDeck. Dokkeに触発されました。コミュニティのために❤️で作られました。'
+            },
+            it: {
+                downloadBtn: 'Scarica EzDeck',
+                viewBtn: 'Visualizza su GitHub',
+                feature1Title: 'Controllo Mobile',
+                feature1Desc: 'Usa il tuo Android, iPhone, iPad o browser per controllare Windows in remoto sulla stessa rete.',
+                feature2Title: 'Pannello Personalizzabile',
+                feature2Desc: 'Configura applicazioni, scorciatoie e pulsanti personalizzati secondo le tue preferenze.',
+                feature3Title: 'Sicuro con PIN',
+                feature3Desc: 'Autenticazione sicura con PIN per proteggere il tuo dispositivo Windows sulla rete locale.',
+                feature4Title: 'Nessun Internet Richiesto',
+                feature4Desc: 'Funziona completamente sulla tua rete locale, nessuna connessione internet richiesta.',
+                feature5Title: 'Risposta Istantanea',
+                feature5Desc: 'Risposta istantanea con WebSocket per un\'esperienza fluida e reattiva.',
+                feature6Title: 'Facile da Installare',
+                feature6Desc: 'Un semplice installer che include tutto ciò di cui hai bisogno per iniziare.',
+                techTitle: 'Specifiche Tecniche',
+                installTitle: 'Per Iniziare',
+                step1Title: 'Scarica',
+                step1Desc: 'Scarica l\'ultima versione di EzDeck-Setup.exe',
+                step2Title: 'Installa',
+                step2Desc: 'Esegui l\'installer e segui le istruzioni',
+                step3Title: 'Configura',
+                step3Desc: 'Aggiungi le tue applicazioni e scorciatoie',
+                step4Title: 'Connetti',
+                step4Desc: 'Apri sul tuo dispositivo mobile e inserisci il PIN',
+                langTitle: 'Lingue Supportate',
+                footerGithub: 'GitHub',
+                footerReleases: 'Release',
+                footerIssues: 'Segnalazioni',
+                footerLicense: 'Licenza MIT',
+                footerText: '© 2024 EzDeck. Ispirato da Dokke. Fatto con ❤️ per la comunità.'
+            },
+            fr: {
+                downloadBtn: 'Télécharger EzDeck',
+                viewBtn: 'Voir sur GitHub',
+                feature1Title: 'Contrôle Mobile',
+                feature1Desc: 'Utilisez votre Android, iPhone, iPad ou navigateur pour contrôler Windows à distance sur le même réseau.',
+                feature2Title: 'Panneau Personnalisable',
+                feature2Desc: 'Configurez les applications, les raccourcis et les boutons personnalisés selon vos préférences.',
+                feature3Title: 'Sécurisé avec PIN',
+                feature3Desc: 'Authentification sécurisée par PIN pour protéger votre appareil Windows sur le réseau local.',
+                feature4Title: 'Pas d\'Internet Requis',
+                feature4Desc: 'Fonctionne complètement sur votre réseau local, aucune connexion Internet requise.',
+                feature5Title: 'Réponse Instantanée',
+                feature5Desc: 'Réponse instantanée avec WebSocket pour une expérience fluide et réactive.',
+                feature6Title: 'Facile à Installer',
+                feature6Desc: 'Un installateur simple qui inclut tout ce dont vous avez besoin pour commencer.',
+                techTitle: 'Spécifications Techniques',
+                installTitle: 'Pour Commencer',
+                step1Title: 'Télécharger',
+                step1Desc: 'Téléchargez la dernière version d\'EzDeck-Setup.exe',
+                step2Title: 'Installer',
+                step2Desc: 'Exécutez l\'installateur et suivez les instructions',
+                step3Title: 'Configurer',
+                step3Desc: 'Ajoutez vos applications et raccourcis',
+                step4Title: 'Connecter',
+                step4Desc: 'Ouvrez sur votre appareil mobile et entrez le PIN',
+                langTitle: 'Langues Supportées',
+                footerGithub: 'GitHub',
+                footerReleases: 'Versions',
+                footerIssues: 'Problèmes',
+                footerLicense: 'Licence MIT',
+                footerText: '© 2024 EzDeck. Inspiré par Dokke. Fait avec ❤️ pour la communauté.'
+            },
+            de: {
+                downloadBtn: 'EzDeck Herunterladen',
+                viewBtn: 'Auf GitHub Ansehen',
+                feature1Title: 'Mobiles Steuerung',
+                feature1Desc: 'Nutzen Sie Ihr Android, iPhone, iPad oder einen Browser, um Windows im gleichen Netzwerk fernzusteuern.',
+                feature2Title: 'Anpassbares Bedienfeld',
+                feature2Desc: 'Konfigurieren Sie Anwendungen, Verknüpfungen und benutzerdefinierte Schaltflächen nach Ihren Wünschen.',
+                feature3Title: 'Sicher mit PIN',
+                feature3Desc: 'Sichere Authentifizierung mit PIN zum Schutz Ihres Windows-Geräts im lokalen Netzwerk.',
+                feature4Title: 'Kein Internet Erforderlich',
+                feature4Desc: 'Funktioniert vollständig in Ihrem lokalen Netzwerk, keine Internetverbindung erforderlich.',
+                feature5Title: 'Sofortige Antwort',
+                feature5Desc: 'Sofortige Antwort mit WebSocket für ein reibungsloses und reaktionsfähiges Erlebnis.',
+                feature6Title: 'Einfach zu Installieren',
+                feature6Desc: 'Ein einfaches Installationsprogramm, das alles enthält, was Sie zum Einstieg benötigen.',
+                techTitle: 'Technische Spezifikationen',
+                installTitle: 'Erste Schritte',
+                step1Title: 'Herunterladen',
+                step1Desc: 'Laden Sie die neueste Version von EzDeck-Setup.exe herunter',
+                step2Title: 'Installieren',
+                step2Desc: 'Führen Sie das Installationsprogramm aus und folgen Sie den Anweisungen',
+                step3Title: 'Konfigurieren',
+                step3Desc: 'Fügen Sie Ihre Anwendungen und Verknüpfungen hinzu',
+                step4Title: 'Verbinden',
+                step4Desc: 'Öffnen Sie auf Ihrem Mobilgerät und geben Sie die PIN ein',
+                langTitle: 'Unterstützte Sprachen',
+                footerGithub: 'GitHub',
+                footerReleases: 'Veröffentlichungen',
+                footerIssues: 'Probleme',
+                footerLicense: 'MIT-Lizenz',
+                footerText: '© 2024 EzDeck. Inspiriert von Dokke. Mit ❤️ für die Gemeinschaft gemacht.'
+            },
+            zh: {
+                downloadBtn: '下载 EzDeck',
+                viewBtn: '在 GitHub 查看',
+                feature1Title: '移动控制',
+                feature1Desc: '使用您的 Android、iPhone、iPad 或浏览器在同一网络上远程控制 Windows。',
+                feature2Title: '可自定义面板',
+                feature2Desc: '根据您的偏好配置应用程序、快捷方式和自定义按钮。',
+                feature3Title: 'PIN 安全保护',
+                feature3Desc: '使用 PIN 进行安全认证，保护本地网络上的 Windows 设备。',
+                feature4Title: '不需要互联网',
+                feature4Desc: '完全在您的本地网络上运行，无需互联网连接。',
+                feature5Title: '即时响应',
+                feature5Desc: '通过 WebSocket 实现即时响应，提供流畅而响应的体验。',
+                feature6Title: '易于安装',
+                feature6Desc: '简单的安装程序，包含您开始所需的一切。',
+                techTitle: '技术规格',
+                installTitle: '入门指南',
+                step1Title: '下载',
+                step1Desc: '下载最新版本的 EzDeck-Setup.exe',
+                step2Title: '安装',
+                step2Desc: '运行安装程序并按照说明进行操作',
+                step3Title: '配置',
+                step3Desc: '添加您的应用程序和快捷方式',
+                step4Title: '连接',
+                step4Desc: '在您的移动设备上打开并输入 PIN',
+                langTitle: '支持的语言',
+                footerGithub: 'GitHub',
+                footerReleases: '发布',
+                footerIssues: '问题',
+                footerLicense: 'MIT 许可证',
+                footerText: '© 2024 EzDeck. 受 Dokke 启发。用 ❤️ 为社区制作。'
+            },
+            vi: {
+                downloadBtn: 'Tải EzDeck',
+                viewBtn: 'Xem trên GitHub',
+                feature1Title: 'Điều Khiển Di Động',
+                feature1Desc: 'Sử dụng thiết bị Android, iPhone, iPad hoặc trình duyệt của bạn để điều khiển Windows từ xa trên cùng một mạng.',
+                feature2Title: 'Bảng Điều Khiển Tùy Chỉnh',
+                feature2Desc: 'Cấu hình ứng dụng, phím tắt và nút tùy chỉnh theo sở thích của bạn.',
+                feature3Title: 'An Toàn với PIN',
+                feature3Desc: 'Xác thực an toàn với PIN để bảo vệ thiết bị Windows của bạn trên mạng cục bộ.',
+                feature4Title: 'Không Cần Internet',
+                feature4Desc: 'Hoạt động hoàn toàn trên mạng cục bộ của bạn, không cần kết nối Internet.',
+                feature5Title: 'Phản Hồi Tức Thì',
+                feature5Desc: 'Phản hồi tức thì với WebSocket để có trải nghiệm mượt mà và đáp ứng.',
+                feature6Title: 'Dễ Cài Đặt',
+                feature6Desc: 'Trình cài đặt đơn giản bao gồm mọi thứ bạn cần để bắt đầu.',
+                techTitle: 'Thông Số Kỹ Thuật',
+                installTitle: 'Bắt Đầu',
+                step1Title: 'Tải',
+                step1Desc: 'Tải phiên bản mới nhất của EzDeck-Setup.exe',
+                step2Title: 'Cài Đặt',
+                step2Desc: 'Chạy trình cài đặt và làm theo hướng dẫn',
+                step3Title: 'Cấu Hình',
+                step3Desc: 'Thêm ứng dụng và phím tắt của bạn',
+                step4Title: 'Kết Nối',
+                step4Desc: 'Mở trên thiết bị di động của bạn và nhập PIN',
+                langTitle: 'Ngôn Ngữ Được Hỗ Trợ',
+                footerGithub: 'GitHub',
+                footerReleases: 'Phát Hành',
+                footerIssues: 'Vấn Đề',
+                footerLicense: 'Giấy Phép MIT',
+                footerText: '© 2024 EzDeck. Lấy cảm hứng từ Dokke. Làm với ❤️ cho cộng đồng.'
+            },
+            ko: {
+                downloadBtn: 'EzDeck 다운로드',
+                viewBtn: 'GitHub에서 보기',
+                feature1Title: '모바일 제어',
+                feature1Desc: 'Android, iPhone, iPad 또는 브라우저를 사용하여 동일한 네트워크에서 Windows를 원격으로 제어합니다.',
+                feature2Title: '사용자 정의 가능한 패널',
+                feature2Desc: '귀하의 선호도에 따라 응용 프로그램, 바로 가기 및 사용자 정의 버튼을 구성합니다.',
+                feature3Title: 'PIN으로 보안',
+                feature3Desc: 'PIN을 사용한 안전한 인증으로 로컬 네트워크의 Windows 장치를 보호합니다.',
+                feature4Title: '인터넷 불필요',
+                feature4Desc: '로컬 네트워크에서 완전히 작동하며 인터넷 연결이 필요하지 않습니다.',
+                feature5Title: '즉각적인 응답',
+                feature5Desc: 'WebSocket을 통한 즉각적인 응답으로 부드럽고 반응형 경험을 제공합니다.',
+                feature6Title: '쉬운 설치',
+                feature6Desc: '시작하는 데 필요한 모든 것이 포함된 간단한 설치 프로그램입니다.',
+                techTitle: '기술 사양',
+                installTitle: '시작하기',
+                step1Title: '다운로드',
+                step1Desc: 'EzDeck-Setup.exe의 최신 버전을 다운로드하세요',
+                step2Title: '설치',
+                step2Desc: '설치 프로그램을 실행하고 지침을 따릅니다',
+                step3Title: '구성',
+                step3Desc: '응용 프로그램과 바로 가기를 추가합니다',
+                step4Title: '연결',
+                step4Desc: '모바일 장치에서 열고 PIN을 입력합니다',
+                langTitle: '지원되는 언어',
+                footerGithub: 'GitHub',
+                footerReleases: '릴리스',
+                footerIssues: '문제',
+                footerLicense: 'MIT 라이선스',
+                footerText: '© 2024 EzDeck. Dokke에서 영감을 받았습니다. 커뮤니티를 위해 ❤️로 만들었습니다.'
+            },
+            ar: {
+                downloadBtn: 'تحميل EzDeck',
+                viewBtn: 'عرض على GitHub',
+                feature1Title: 'التحكم عبر الهاتف المحمول',
+                feature1Desc: 'استخدم جهاز Android أو iPhone أو iPad أو متصفح ويب للتحكم في Windows عن بعد على نفس الشبكة المحلية.',
+                feature2Title: 'لوحة قابلة للتخصيص',
+                feature2Desc: 'قم بتكوين التطبيقات والاختصارات والأزرار المخصصة حسب تفضيلاتك.',
+                feature3Title: 'آمن باستخدام رقم PIN',
+                feature3Desc: 'المصادقة الآمنة برقم PIN لحماية جهاز Windows الخاص بك على الشبكة المحلية.',
+                feature4Title: 'لا يتطلب إنترنت',
+                feature4Desc: 'يعمل بالكامل على شبكتك المحلية، لا يتطلب اتصال بالإنترنت.',
+                feature5Title: 'استجابة فورية',
+                feature5Desc: 'استجابة فورية مع WebSocket لتجربة سلسة وسريعة الاستجابة.',
+                feature6Title: 'سهل التثبيت',
+                feature6Desc: 'برنامج تثبيت بسيط يتضمن كل ما تحتاجه للبدء.',
+                techTitle: 'المواصفات التقنية',
+                installTitle: 'البدء',
+                step1Title: 'تحميل',
+                step1Desc: 'قم بتحميل أحدث إصدار من EzDeck-Setup.exe',
+                step2Title: 'تثبيت',
+                step2Desc: 'قم بتشغيل برنامج التثبيت واتبع التعليمات',
+                step3Title: 'تكوين',
+                step3Desc: 'أضف التطبيقات والاختصارات الخاصة بك',
+                step4Title: 'اتصل',
+                step4Desc: 'افتح على جهاز الهاتف المحمول الخاص بك وأدخل رقم PIN',
+                langTitle: 'اللغات المدعومة',
+                footerGithub: 'GitHub',
+                footerReleases: 'الإصدارات',
+                footerIssues: 'المشاكل',
+                footerLicense: 'رخصة MIT',
+                footerText: '© 2024 EzDeck. مستوحى من Dokke. تم إنشاؤه بـ ❤️ للمجتمع.'
+            }
+        };
+
+        function initializeLanguageSelector() {
+            const selector = document.getElementById('languageSelector');
+
+            for (const [code, lang] of Object.entries(LANGUAGES)) {
+                const button = document.createElement('button');
+                button.className = 'lang-btn' + (lang.active ? ' active' : '');
+                button.textContent = lang.name;
+                button.dataset.lang = code;
+                button.onclick = () => switchLanguage(code);
+                selector.appendChild(button);
+            }
+        }
+
+        function switchLanguage(lang) {
+            // Update active language
+            for (const [code] of Object.entries(LANGUAGES)) {
+                LANGUAGES[code].active = code === lang;
+            }
+
+            // Update buttons
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                if (btn.dataset.lang === lang) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            // Update content
+            document.querySelectorAll('[data-lang]').forEach(elem => {
+                const elemLang = elem.dataset.lang;
+                if (elemLang === lang) {
+                    elem.classList.remove('hidden');
+                    elem.classList.add('active');
+                } else {
+                    elem.classList.add('hidden');
+                    elem.classList.remove('active');
+                }
+            });
+
+            // Update dynamic translations
+            updateDynamicTranslations(lang);
+
+            // Save preference
+            localStorage.setItem('ezdeck-lang', lang);
+        }
+
+        function updateDynamicTranslations(lang) {
+            const translations = TRANSLATIONS[lang] || TRANSLATIONS.en;
+
+            // Update all elements with data-text attribute
+            document.querySelectorAll('[data-text]').forEach(elem => {
+                const key = elem.dataset.text;
+                if (translations[key]) {
+                    elem.textContent = translations[key];
+                }
+            });
+        }
+
+        function initializeDefaultLanguage() {
+            const saved = localStorage.getItem('ezdeck-lang');
+            const browserLang = navigator.language.split('-')[0];
+            const defaultLang = saved || (LANGUAGES[browserLang] ? browserLang : 'en');
+
+            switchLanguage(defaultLang);
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeLanguageSelector();
+            initializeDefaultLanguage();
+        });
+    </script>
+</body>
+</html>
