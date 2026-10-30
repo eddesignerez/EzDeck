@@ -80,6 +80,59 @@ test('corrupt download never launches and permits a retry', async t => {
   assert.equal(downloads,2); assert.equal(f.launches.length,0);
 });
 
+test('download reports received bytes before completion and does not invent a missing total', async t => {
+  for (const knownSize of [true,false]) {
+    const bytes=Buffer.alloc(2048,42);bytes.write('MZ');
+    const hash=createHash('sha256').update(bytes).digest('hex');
+    let stream;
+    const f=await fixture(t,{fetcher:async url=>{
+      if(url.endsWith('/latest')) return new Response(null,{status:302,headers:{location:'/eddesignerez/EzDeck/releases/tag/v0.2.13'}});
+      if(url.endsWith('SHA256SUMS.txt')) return new Response(`${hash}  EzDeck0213-Setup.exe`);
+      return new Response(new ReadableStream({start(controller){stream=controller}}),{headers:knownSize?{'content-length':String(bytes.length)}:{}});
+    }});
+    const download=f.updater.install();
+    while(!stream) await new Promise(resolve=>setImmediate(resolve));
+    stream.enqueue(bytes.subarray(0,1024));
+    while(f.updater.snapshot().progress.received===0) await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(f.updater.snapshot().status,'downloading');
+    assert.deepEqual(f.updater.snapshot().progress,{received:1024,total:knownSize?2048:null});
+    const earlier=f.updater.snapshot();
+    stream.enqueue(bytes.subarray(1024));stream.close();await download;
+    assert.equal(earlier.progress.received,1024,'snapshots must not mutate as bytes arrive');
+    assert.equal(f.updater.snapshot().progress.received,2048);
+    assert.equal(f.updater.snapshot().status,'ready');assert.equal(f.launches.length,0);
+  }
+});
+
+test('Windows progress stays visible during download and failed install restores retry controls', async t => {
+  const f=await fixture(t);const token='progress-test-only-abcdefghijklmnopqrstuvwxyz';
+  let state={status:'available',progress:null},rejectInstall;
+  const platform={appTools:{listInstalledApps:async()=>[],listAppProcesses:async()=>[]},actions:{activateApp:async()=>{}},iconService:{getIconPng:async()=>null}};
+  const updater={snapshot:()=>({current:'0.2.16',automatic:true,latest:{version:'0.2.17',available:true},...state}),
+    install:()=>{state={status:'downloading',progress:{received:1024,total:2048}};return new Promise((resolve,reject)=>{rejectInstall=reject})}};
+  const server=await startServer({port:0,dataDir:f.directory,config:{pinned:[]},obs:null,platform,windowsHost:{token,updater,startup:{enabled:async()=>false},actions:{list:async()=>[]}}});
+  t.after(()=>{rejectInstall?.(Error('test cleanup'));server.close()});
+  const browser=await chromium.launch({headless:true,channel:process.platform==='win32'?'msedge':undefined});t.after(()=>browser.close());
+  const page=await browser.newPage({viewport:{width:1280,height:820}});
+  await page.goto(`http://127.0.0.1:${server.port}/windows.html?token=${token}`);
+  page.once('dialog',dialog=>dialog.accept());
+  await page.getByRole('button',{name:'Atualizar agora'}).click();
+  await page.getByText('Baixando a atualização: 50%',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('progressbar').getAttribute('value'),'50');
+  assert.equal(await page.getByRole('checkbox',{name:'Atualização Automatica',exact:true}).isDisabled(),true);
+  assert.equal(await page.getByRole('button',{name:'Atualizar agora'}).isVisible(),false);
+  await mkdir(join(import.meta.dirname,'../.test-artifacts'),{recursive:true});
+  await page.screenshot({path:join(import.meta.dirname,'../.test-artifacts/windows-download-light.png')});
+  await page.locator('#theme-toggle').click();
+  await page.screenshot({path:join(import.meta.dirname,'../.test-artifacts/windows-download-dark.png')});
+  state.progress.total=null;
+  await page.waitForFunction(()=>!document.querySelector('progress').hasAttribute('value'));
+  rejectInstall(Error('network interrupted'));
+  await page.getByText('Não foi possível atualizar. Nenhum download não verificado será executado.').waitFor();
+  assert.equal(await page.getByRole('button',{name:'Atualizar agora'}).isEnabled(),true);
+  assert.equal(await page.getByRole('progressbar').isVisible(),false);
+});
+
 test('redirect to an untrusted host is rejected before contacting that host', async t => {
   const seen=[];
   const f=await fixture(t,{fetcher:async url=>{
