@@ -422,13 +422,13 @@ export function createWindowsApps(deps = {}) {
       inflight = scanAndCache().finally(() => { inflight = null; });
       return inflight;
     },
-    async listAppProcesses() {
+    async listAppProcesses(options = {}) {
       const [processes, installed] = await Promise.all([listProcesses(), api.listInstalledApps()]);
       return processes.filter(isUserFacingRunningApp).map(item => {
         const { title, description, product, appUserModelId, ...publicProcess } = item;
         const name = readableRunningAppName(item, installed);
         const displayName = installed.find(app => app.name === name)?.displayName;
-        return { ...publicProcess, name, ...(displayName ? { displayName } : {}) };
+        return { ...publicProcess, name, ...(displayName ? { displayName } : {}), ...(options.nativeMenu && appUserModelId ? { appUserModelId } : {}) };
       });
     },
   };

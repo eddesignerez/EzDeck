@@ -12,6 +12,11 @@ internal object UpdateVersion {
         return "v" + parts.joinToString(".")
     }
 
+    fun apkAssetName(raw: String?): String? {
+        val tag = releaseTag(raw) ?: return null
+        return "EzDeck" + tag.removePrefix("v").replace(".", "") + ".apk"
+    }
+
     fun githubReleaseVersion(location: String?): String? {
         val prefix = "https://github.com/eddesignerez/EzDeck/releases/tag/"
         val path = location?.let {

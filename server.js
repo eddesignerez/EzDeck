@@ -96,7 +96,7 @@ async function refreshVersion() {
       versionCache.value = {
         tag: m[1],
         htmlUrl: "https://github.com/eddesignerez/EzDeck/releases/tag/" + m[1],
-        apkUrl: "https://github.com/eddesignerez/EzDeck/releases/latest/download/ezdeck.apk",
+        apkUrl: "https://github.com/eddesignerez/EzDeck/releases/download/" + m[1] + "/EzDeck" + m[1].replace(/^v/, "").replaceAll(".", "") + ".apk",
       };
       versionCache.age = Date.now();
     } catch {

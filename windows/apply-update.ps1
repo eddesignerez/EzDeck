@@ -3,14 +3,17 @@ param(
   [Parameter(Mandatory=$true)][string]$ExpectedHash,
   [Parameter(Mandatory=$true)][int]$HostPid,
   [Parameter(Mandatory=$true)][int]$DesktopPid,
-  [Parameter(Mandatory=$true)][string]$InstallRoot
+  [Parameter(Mandatory=$true)][string]$InstallRoot,
+  [Parameter(Mandatory=$true)][string]$Version
 )
 $ErrorActionPreference='Stop'
 try {
   $taskRoot=[IO.Path]::GetFullPath($InstallRoot)
   $taskExe=[IO.Path]::GetFullPath($Installer)
   $taskUpdates=[IO.Path]::GetFullPath((Join-Path $env:APPDATA 'EzDeck\updates')).TrimEnd('\')+'\'
-  if (!$taskExe.StartsWith($taskUpdates,[StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($taskExe) -ne 'EzDeck-Setup.exe') { throw 'Instalador fora do diretório de atualização' }
+  if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Versão de atualização inválida' }
+  $taskFilename='EzDeck'+($Version -replace '\.','')+'-Setup.exe'
+  if (!$taskExe.StartsWith($taskUpdates,[StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($taskExe) -ne $taskFilename) { throw 'Instalador fora do diretório de atualização' }
   if ($ExpectedHash -notmatch '^[a-fA-F0-9]{64}$' -or (Get-FileHash -LiteralPath $taskExe -Algorithm SHA256).Hash -ne $ExpectedHash) { throw 'Arquivo de atualização inválido' }
   # Wait only for the verified installed host and desktop, never unrelated Node apps.
   foreach ($taskId in @($HostPid,$DesktopPid)) {
@@ -23,7 +26,7 @@ try {
     if ($taskRunning -and !$taskRunning.WaitForExit(20000)) { throw 'O EzDeck não encerrou para atualizar' }
   }
   if ((Get-FileHash -LiteralPath $taskExe -Algorithm SHA256).Hash -ne $ExpectedHash) { throw 'O instalador mudou após a verificação' }
-  $taskInstaller=Start-Process -FilePath $taskExe -PassThru
+  $taskInstaller=Start-Process -FilePath $taskExe -ArgumentList @('/quiet', '/dir', ('"'+$taskRoot+'"')) -PassThru
   $taskInstaller.WaitForExit() # Do not wait for the restarted app's descendant processes.
   if ($taskInstaller.ExitCode -ne 0) { throw 'O instalador não concluiu a atualização' }
 } catch {

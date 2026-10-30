@@ -2,7 +2,7 @@
 
 Dois dedos sobre o mesmo cartão em Apps Abertos solicitam o menu da barra de tarefas do Windows. Um toque abre o aplicativo e segurar continua reorganizando os cartões. Movimentos com dois dedos não abrem o menu. Shift+F10 oferece o mesmo acesso por teclado.
 
-O Windows identifica o botão na barra de tarefas pelo inventário local, abre o menu real e envia somente a imagem delimitada desse menu. Tocar na imagem executa a opção correspondente no Windows. Não há lista de ações recriada pelo companion. Menus de aplicativos sem um botão identificável, agrupamentos ambíguos ou menus ocultos retornam indisponibilidade, sem clicar em outro aplicativo.
+O Windows identifica o botão na barra de tarefas pelo inventário local, incluindo a identidade do aplicativo quando disponível. Os rótulos acessíveis podem incluir sufixos localizados como “- 1 janela em execução” e “fixado”; botões da bandeja são excluídos. O host abre o menu real e envia somente a imagem delimitada desse menu. Tocar na imagem executa a opção correspondente no Windows. Não há lista de ações recriada pelo companion. Aplicativos sem botão na barra de tarefas, agrupamentos ambíguos ou menus ocultos retornam indisponibilidade, sem clicar em outro aplicativo.
 
 As operações exigem o pareamento existente, verificação de origem, sessão opaca vinculada ao dispositivo, coordenadas relativas limitadas e expiração de 60 segundos. Nenhum caminho, script, HWND ou coordenada do desktop é aceito do cliente. A fila possui limite de oito solicitações pendentes. Não há captura do desktop inteiro.
 
@@ -14,4 +14,4 @@ Os testes automatizados cobrem gesto e ponte HTTP com menu simulado, ausência d
 
 A captura e interação com o menu real precisam de validação interativa no Windows e no Xiaomi. Confirmar posição/tamanho, texto e opções idênticas ao clique direito na barra de tarefas; testar uma opção não destrutiva, fechamento, menu indisponível e aplicativo agrupado. Não publicar como funcionalmente validado antes dessa etapa.
 
-Empacotamento planejado como versão de teste 0.2.14. O usuário autorizou envio ao GitHub, sem instalar no Windows ou Android. A validação interativa continua pendente; não promover a versão a estável nem substituir a versão usada pela atualização automática antes dessa validação. A release estável 0.2.13 e os aplicativos instalados permanecem preservados.
+Na versão 0.2.15, a identificação do botão considera os rótulos observados no Windows 11 e evita o ícone da bandeja. Um teste direto do helper a partir do terminal identificou o botão do ChatGPT, mas não confirmou a captura do menu no desktop; a causa exata desta falha ainda não foi isolada. A compilação e o teste simulado não comprovam funcionamento no Xiaomi. Testar a combinação Windows instalado + APK no aparelho antes de declarar o gesto corrigido.

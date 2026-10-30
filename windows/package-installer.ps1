@@ -3,8 +3,10 @@ param([string]$Output)
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-if ([string]::IsNullOrWhiteSpace($Output)) { $Output = Join-Path $root 'dist\EzDeck-Setup.exe' }
 $displayVersion = (Get-Content -LiteralPath (Join-Path $root 'package.json') -Raw | ConvertFrom-Json).version
+if ($displayVersion -notmatch '^\d+\.\d+\.\d+$') { throw 'Versão inválida para o pacote' }
+$releaseName = 'EzDeck' + ($displayVersion -replace '\.', '') + '-Setup.exe'
+if ([string]::IsNullOrWhiteSpace($Output)) { $Output = Join-Path $root ('dist\' + $releaseName) }
 $node = (Get-Command node -ErrorAction Stop).Source
 if (-not (Test-Path -LiteralPath $node)) { throw 'Node.js não foi encontrado para embutir no instalador.' }
 
@@ -37,8 +39,17 @@ using System.Windows.Forms;
 
 internal static class EzDeckUninstaller {
   private const string RegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\EzDeck";
-  private static readonly string Target = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EzDeck");
   private static readonly string DataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "EzDeck");
+  private static string Target {
+    get {
+      using (var key = Registry.CurrentUser.OpenSubKey(RegistryPath)) {
+        var saved = key == null ? null : key.GetValue("InstallLocation") as string;
+        var path = Path.GetFullPath(String.IsNullOrWhiteSpace(saved) ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EzDeck") : saved);
+        if (!String.Equals(Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar)), "EzDeck", StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Pasta de instalação inválida");
+        return path;
+      }
+    }
+  }
 
   private static void StopInstalledHost() {
     var runtime = Path.Combine(Target, "runtime", "node.exe");
@@ -97,12 +108,13 @@ internal static class EzDeckUninstaller {
     bool eraseData;
     if (!ConfirmUninstall(out eraseData)) return;
     try {
+      var target = Target;
       StopInstalledHost();
       RemoveLink(Environment.SpecialFolder.DesktopDirectory, "EzDeck.lnk");
       RemoveLink(Environment.SpecialFolder.Programs, "EzDeck.lnk");
       RemoveLink(Environment.SpecialFolder.ApplicationData, "Microsoft", "Windows", "Start Menu", "Programs", "Startup", "EzDeck.lnk");
       Registry.CurrentUser.DeleteSubKeyTree(RegistryPath, false);
-      var command = "/c timeout /t 1 /nobreak > nul & rmdir /s /q \"" + Target + "\"";
+      var command = "/c timeout /t 1 /nobreak > nul & rmdir /s /q \"" + target + "\"";
       if (eraseData) command += " & rmdir /s /q \"" + DataDirectory + "\"";
       Process.Start(new ProcessStartInfo("cmd.exe", command) { CreateNoWindow = true, UseShellExecute = false });
       MessageBox.Show(eraseData ? "EzDeck e todos os seus dados foram removidos." : "EzDeck foi desinstalado. Suas configurações foram preservadas para uma futura reinstalação.", "EzDeck", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -130,12 +142,47 @@ using System.Windows.Forms;
 using Microsoft.Win32;
 
 internal static class EzDeckInstaller {
-  [STAThread]
-  private static void Main() {
+  private const string RegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\EzDeck";
+  private static string ExistingTarget() {
+    using (var key = Registry.CurrentUser.OpenSubKey(RegistryPath)) {
+      var saved = key == null ? null : key.GetValue("InstallLocation") as string;
+      return String.IsNullOrWhiteSpace(saved) ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EzDeck") : saved;
+    }
+  }
+  private static string ValidateTarget(string target) {
+    var full = Path.GetFullPath(target).TrimEnd(Path.DirectorySeparatorChar);
+    if (!String.Equals(Path.GetFileName(full), "EzDeck", StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Selecione uma pasta chamada EzDeck.");
+    if (Path.GetDirectoryName(full) == null) throw new InvalidOperationException("Pasta de instalação inválida.");
+    return full;
+  }
+  private static string ChooseTarget(string proposed) {
+    using (var dialog = new Form()) {
+      dialog.Text = "Instalar EzDeck __EZDECK_VERSION__";
+      dialog.StartPosition = FormStartPosition.CenterScreen;
+      dialog.FormBorderStyle = FormBorderStyle.FixedDialog;
+      dialog.MinimizeBox = false;
+      dialog.MaximizeBox = false;
+      dialog.ClientSize = new System.Drawing.Size(530, 210);
+      var title = new Label { Text = "Bem-vindo à instalação do EzDeck", Location = new System.Drawing.Point(20, 18), Size = new System.Drawing.Size(470, 28), Font = new System.Drawing.Font("Segoe UI", 12, System.Drawing.FontStyle.Bold) };
+      var description = new Label { Text = "Escolha onde instalar o aplicativo. Seus botões e configurações serão preservados.", Location = new System.Drawing.Point(20, 57), Size = new System.Drawing.Size(485, 40) };
+      var path = new TextBox { Text = proposed, Location = new System.Drawing.Point(20, 111), Size = new System.Drawing.Size(385, 24) };
+      var browse = new Button { Text = "Procurar...", Location = new System.Drawing.Point(414, 108), Size = new System.Drawing.Size(94, 28) };
+      browse.Click += (sender, args) => { using (var folder = new FolderBrowserDialog()) { folder.Description = "Escolha a pasta que conterá o EzDeck"; if (folder.ShowDialog(dialog) == DialogResult.OK) path.Text = Path.Combine(folder.SelectedPath, "EzDeck"); } };
+      var cancel = new Button { Text = "Cancelar", DialogResult = DialogResult.Cancel, Location = new System.Drawing.Point(314, 160), Size = new System.Drawing.Size(90, 30) };
+      var install = new Button { Text = "Instalar", DialogResult = DialogResult.OK, Location = new System.Drawing.Point(414, 160), Size = new System.Drawing.Size(94, 30) };
+      dialog.Controls.AddRange(new Control[] { title, description, path, browse, cancel, install });
+      dialog.AcceptButton = install; dialog.CancelButton = cancel;
+      while (dialog.ShowDialog() == DialogResult.OK) {
+        try { return ValidateTarget(path.Text); }
+        catch (Exception error) { MessageBox.Show(error.Message, "EzDeck", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+      }
+      return null;
+    }
+  }
+  private static void Install(string target) {
+    Directory.CreateDirectory(target);
+    var archive = Path.Combine(Path.GetTempPath(), "EzDeck-" + Guid.NewGuid().ToString("N") + ".zip");
     try {
-      var target = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EzDeck");
-      Directory.CreateDirectory(target);
-      var archive = Path.Combine(Path.GetTempPath(), "EzDeck-" + Guid.NewGuid().ToString("N") + ".zip");
       using (var input = Assembly.GetExecutingAssembly().GetManifestResourceStream("EzDeck.payload.zip")) {
         if (input == null) throw new InvalidOperationException("Pacote interno do EzDeck não foi encontrado.");
         using (var output = File.Create(archive)) input.CopyTo(output);
@@ -149,21 +196,32 @@ internal static class EzDeckInstaller {
           entry.ExtractToFile(destination, true);
         }
       }
-      File.Delete(archive);
-      var uninstaller = Path.Combine(target, "EzDeck-Uninstall.exe");
-      if (!File.Exists(uninstaller)) throw new InvalidOperationException("Desinstalador interno do EzDeck não foi encontrado.");
-      using (var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\EzDeck")) {
-        key.SetValue("DisplayName", "EzDeck");
-        key.SetValue("DisplayVersion", "__EZDECK_VERSION__");
-        key.SetValue("Publisher", "EzDeck");
-        key.SetValue("InstallLocation", target);
-        key.SetValue("DisplayIcon", Path.Combine(target, "ezdeck.ico"));
-        key.SetValue("UninstallString", "\"" + uninstaller + "\"");
-        key.SetValue("NoModify", 1, RegistryValueKind.DWord);
-        key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
-      }
-      var launcher = Path.Combine(target, "EzDeck.vbs");
-      Process.Start(new ProcessStartInfo("wscript.exe", "\"" + launcher + "\"") { WorkingDirectory = target, UseShellExecute = true });
+    } finally { if (File.Exists(archive)) File.Delete(archive); }
+    var uninstaller = Path.Combine(target, "EzDeck-Uninstall.exe");
+    if (!File.Exists(uninstaller)) throw new InvalidOperationException("Desinstalador interno do EzDeck não foi encontrado.");
+    using (var key = Registry.CurrentUser.CreateSubKey(RegistryPath)) {
+      key.SetValue("DisplayName", "EzDeck");
+      key.SetValue("DisplayVersion", "__EZDECK_VERSION__");
+      key.SetValue("Publisher", "EzDeck");
+      key.SetValue("InstallLocation", target);
+      key.SetValue("DisplayIcon", Path.Combine(target, "ezdeck.ico"));
+      key.SetValue("UninstallString", "\"" + uninstaller + "\"");
+      key.SetValue("NoModify", 1, RegistryValueKind.DWord);
+      key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
+    }
+    var launcher = Path.Combine(target, "EzDeck.vbs");
+    Process.Start(new ProcessStartInfo("wscript.exe", "\"" + launcher + "\"") { WorkingDirectory = target, UseShellExecute = true });
+  }
+  [STAThread]
+  private static void Main() {
+    try {
+      var arguments = Environment.GetCommandLineArgs();
+      var quiet = arguments.Length == 4 && String.Equals(arguments[1], "/quiet", StringComparison.OrdinalIgnoreCase) && String.Equals(arguments[2], "/dir", StringComparison.OrdinalIgnoreCase);
+      if (arguments.Length > 1 && !quiet) throw new InvalidOperationException("Parâmetros de instalação inválidos.");
+      var target = quiet ? ValidateTarget(arguments[3]) : ChooseTarget(ExistingTarget());
+      if (target == null) return;
+      Install(target);
+      if (!quiet) MessageBox.Show("EzDeck __EZDECK_VERSION__ instalado em:\r\n" + target, "Instalação concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);
     } catch (Exception error) {
       MessageBox.Show(error.Message, "EzDeck", MessageBoxButtons.OK, MessageBoxIcon.Error);
       Environment.ExitCode = 1;
@@ -175,7 +233,7 @@ internal static class EzDeckInstaller {
   $sourceFile = Join-Path $stage 'EzDeckInstaller.cs'
   Set-Content -LiteralPath $sourceFile -Value $launcherSource -Encoding UTF8
   & $compiler /nologo /target:winexe /platform:anycpu /optimize+ "/out:$Output" "/win32icon:$($app + '\\ezdeck.ico')" "/resource:$archive,EzDeck.payload.zip" /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /r:System.Windows.Forms.dll $sourceFile
-  if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $Output)) { throw 'Não foi possível criar o instalador EzDeck-Setup.exe.' }
+  if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $Output)) { throw 'Não foi possível criar o instalador EzDeck.' }
   & (Join-Path $PSScriptRoot 'write-update-checksum.ps1') -Installer $Output
   Get-Item -LiteralPath $Output | Select-Object FullName, Length, LastWriteTime
 } finally {

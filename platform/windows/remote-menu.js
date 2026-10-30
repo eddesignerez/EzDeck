@@ -33,7 +33,7 @@ export function createRemoteMenu({ listAppProcesses, run, now = Date.now, ttlMs 
     open(owner, name) { return serial(async () => {
       if (typeof owner !== 'string' || !owner || typeof name !== 'string' || name.length > 200) throw Error('Aplicativo inválido');
       if (current && current.owner !== owner && now() < current.expires) throw Error('Menu em uso por outro dispositivo');
-      const app = (await listAppProcesses()).find(a => a.name === name && Number.isInteger(a.pid) && a.pid > 0);
+      const app = (await listAppProcesses({ nativeMenu: true })).find(a => a.name === name && Number.isInteger(a.pid) && a.pid > 0);
       if (!app) throw Error('O aplicativo não está mais aberto');
       await closeNative();
       current = { owner, session: token(), expires: now() + ttlMs };

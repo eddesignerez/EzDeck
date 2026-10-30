@@ -559,7 +559,8 @@ class MainActivity : ComponentActivity() {
         }
         val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         val filename = "ezdeck-update-$version-${System.currentTimeMillis()}.apk"
-        val apkUrl = "$updateApkBaseUrl/$releaseTag/ezdeck.apk"
+        val apkName = UpdateVersion.apkAssetName(version) ?: return
+        val apkUrl = "$updateApkBaseUrl/$releaseTag/$apkName"
         val request = DownloadManager.Request(Uri.parse(apkUrl))
             .setTitle(message("update.downloadTitle"))
             .setDescription(message("update.downloadDescription", mapOf("version" to version)))

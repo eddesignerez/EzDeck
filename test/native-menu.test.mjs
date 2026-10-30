@@ -14,6 +14,11 @@ test('native Windows helper compiles without opening menus or injecting input',{
   const worker=createCommandWorker();
   try{assert.equal(JSON.parse((await worker.run(NATIVE_MENU_SCRIPT,['ready'])).stdout).Ready,true);}finally{worker.close();}
 });
+test('native helper targets taskbar buttons, not similarly named tray icons',()=>{
+  assert.match(NATIVE_MENU_SCRIPT,/TaskbarFrame/);
+  assert.match(NATIVE_MENU_SCRIPT,/XamlExplorerHostIslandWindow_WASDK/);
+  assert.match(NATIVE_MENU_SCRIPT,/text\.StartsWith\(name\+" - "/);
+});
 test('EzDeck running through wscript uses its own logo even without a Start menu shortcut',async()=>{
   let source;
   const icons=createWindowsIconService({listInstalledApps:async()=>[],listAppProcesses:async()=>[{name:'EzDeck',pid:123,path:'C:/Windows/System32/wscript.exe'}],convertIcon:async(path,output)=>{source=path;await writeFile(output,Buffer.from('icon'));}});
@@ -34,12 +39,24 @@ test('native menu validates inventory, session owner, coordinates and expiry',as
     clock+=1001; await assert.rejects(menu.frame('device',opened.session));
   }finally{await menu.close();}
 });
+test('native menu keeps the Windows app identity for taskbar matching',async()=>{
+  let opened;
+  const menu=createRemoteMenu({listAppProcesses:async()=>[{name:'EzDeck',pid:123,appUserModelId:'EzDeck.App',title:'EzDeck'}],run:async(script,args)=>{
+    if(args[0]==='open') opened=args;
+    return {stdout:JSON.stringify(args[0]==='close'?{Closed:true}:frame)};
+  }});
+  try { await menu.open('device','EzDeck'); assert.deepEqual(opened,['open','EzDeck','EzDeck.App','123']); }
+  finally { await menu.close(); }
+});
 test('Windows launcher and uninstaller include the Start menu shortcut and branded icon',async()=>{
   const launcher=await readFile(new URL('../EzDeck.vbs',import.meta.url),'utf8');
   const installer=await readFile(new URL('../windows/package-installer.ps1',import.meta.url),'utf8');
   assert.match(launcher,/SpecialFolders\("Programs"\)/);
   assert.match(launcher,/link.IconLocation = fs.BuildPath\(root, "ezdeck.ico"\)/);
   assert.match(installer,/RemoveLink\(Environment.SpecialFolder.Programs, "EzDeck.lnk"\)/);
+  assert.match(installer,/FolderBrowserDialog/);
+  assert.match(installer,/ChooseTarget\(ExistingTarget\(\)\)/);
+  assert.match(installer,/if \(!quiet\) MessageBox.Show\("EzDeck/);
 });
 test('two-finger tap opens real-menu bridge once, never activates or reorders; image tap executes',async t=>{
   let opened=0,activated=0,tapped=0;

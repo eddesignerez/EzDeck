@@ -49,7 +49,7 @@ Botões e pareamento permanecem em `%APPDATA%\EzDeck`. Avisos de segurança do
 Windows não são contornados. A execução automática do instalador está disponível
 somente na instalação com runtime próprio, não no modo de desenvolvimento.
 
-A Release `vX.Y.Z` precisa incluir `EzDeck-Setup.exe` e `SHA256SUMS.txt` da
+A Release `vX.Y.Z` precisa incluir `EzDeckXYZ-Setup.exe` (dígitos da versão sem pontos) e `SHA256SUMS.txt` da
 mesma compilação. O empacotamento gera esse arquivo; depois de assinar o EXE,
 gere-o novamente com `windows/write-update-checksum.ps1 -Installer caminho`.
 Sem esse arquivo ou com hash divergente, nenhum instalador é executado.
@@ -72,8 +72,8 @@ Stream Deck. O servidor, a PWA e o APK usam o mesmo protocolo do EzDeck; o
 adaptador Windows encontra atalhos do Menu Iniciar e só abre caminhos que ele
 mesmo inventariou.
 
-Para instalar sem Node.js, use `EzDeck-Setup.exe` publicado na Release. O
-instalador leva o runtime necessário, instala em `%LOCALAPPDATA%\EzDeck` e
+Para instalar sem Node.js, use o EXE da versão publicado na Release. O
+assistente permite escolher a pasta, com `%LOCALAPPDATA%\EzDeck` como padrão. Ele leva o runtime necessário e
 cria o atalho na Área de Trabalho. Ele também registra **EzDeck** em
 **Configurações → Aplicativos → Aplicativos instalados** e no **Painel de
 Controle → Programas e Recursos**. Ao desinstalar, o app, o atalho e a opção
