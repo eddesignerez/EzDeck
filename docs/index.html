@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EzDeck — O Stream Deck gratuito e 100% local para Windows</title>
+    <meta name="description" content="Transforme seu celular ou tablet antigo em um Stream Deck para Windows. Controle OBS, Discord, Spotify e atalhos com zero nuvem e latência de milissegundos.">
+    <meta name="og:title" content="EzDeck — Transforme seu celular em um Stream Deck no Windows">
+    <meta name="og:description" content="Painel de atalhos local para Windows a partir de Android, tablet ou navegador. 40 botões, 5 páginas, zero nuvem e latência ultrabaixa.">
+    <style>
+        :root {
+            color-scheme: dark;
+            --color-action: #fa8537;
+            --color-action-hover: #ff9d5c;
+            --color-action-active: #e26e22;
+            --color-action-glow: rgba(250, 133, 55, 0.4);
+            --color-surface: #0e0502;
+            --color-surface-elevated: #1a0b06;
+            --color-surface-card: rgba(36, 17, 10, 0.78);
+            --color-surface-card-hover: rgba(56, 26, 16, 0.88);
+            --color-glass-border: rgba(250, 133, 55, 0.18);
+            --color-glass-border-hover: rgba(250, 133, 55, 0.48);
+            --color-text: #fff6f0;
+            --color-text-muted: #d4b29d;
+            --color-text-subtle: #8f6d5a;
+            --color-border: rgba(255, 255, 255, 0.08);
+            --color-border-subtle: rgba(245, 177, 132, 0.15);
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --radius-lg: 24px;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
+            --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.5);
+            --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.65);
+            --shadow-glow: 0 0 35px rgba(250, 133, 55, 0.25);
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        :root[data-theme="light"] {
+            color-scheme: light;
+            --color-action: #f73b20;
+            --color-action-hover: #d82a12;
+            --color-action-active: #b5200b;
+            --color-action-glow: rgba(247, 59, 32, 0.25);
+            --color-surface: #ffffff;
+            --color-surface-elevated: #fdf5f2;
+            --color-surface-card: #ffffff;
+            --color-surface-card-hover: #fcf1ed;
+            --color-glass-border: rgba(247, 59, 32, 0.18);
+            --color-glass-border-hover: rgba(247, 59, 32, 0.45);
+            --color-text: #2c0803;
+            --color-text-muted: #6b352b;
+            --color-text-subtle: #966157;
+            --color-border: rgba(54, 8, 2, 0.1);
+            --color-border-subtle: rgba(247, 59, 32, 0.12);
+            --shadow-sm: 0 2px 8px rgba(54, 8, 2, 0.06);
+            --shadow-md: 0 8px 24px rgba(54, 8, 2, 0.08);
+            --shadow-lg: 0 20px 48px rgba(54, 8, 2, 0.12);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: 16px;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--color-surface);
+            color: var(--color-text);
+            line-height: 1.6;
+            transition: background-color 0.3s, color 0.3s;
+            background-image:
+                radial-gradient(circle at 80% 8%, rgba(250, 133, 55, 0.12) 0%, transparent 45%),
+                radial-gradient(circle at 10% 35%, rgba(180, 50, 15, 0.08) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        :root[data-theme="light"] body {
+            background-image:
+                radial-gradient(circle at 85% 5%, rgba(247, 59, 32, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 15% 40%, rgba(247, 59, 32, 0.04) 0%, transparent 35%);
+        }
+
+        .container {
+            max-width: 1240px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(14, 5, 2, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--color-border);
+            padding: 0 24px;
+            height: 76px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background var(--transition-normal);
+        }
+
+        :root[data-theme="light"] header {
+            background: rgba(255, 255, 255, 0.88);
+        }
+
+        .logo {
+            font-size: 1.45rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            color: var(--color-text);
+        }
+
+        .logo span {
+            color: var(--color-action);
+        }
+
+        .logo img {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(250, 133, 55, 0.3);
+        }
+
+        .nav-group {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .lang-selector {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .lang-btn {
+            padding: 8px 14px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface-card);
+            color: var(--color-text);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .lang-btn:hover {
+            border-color: var(--color-action);
+            background: var(--color-surface-card-hover);
+        }
+
+        .lang-btn.active {
+            border-color: var(--color-action);
+            background: var(--color-action);
+            color: var(--color-surface);
+        }
+
+        .theme-toggle {
+            background: var(--color-surface-card);
+            border: 1px solid var(--color-border);
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .theme-toggle:hover {
+            background: var(--color-action);
+            border-color: var(--color-action);
+        }
+
+        /* Hero */
+        .hero {
+            display: grid;
+            grid-template-columns: 1fr 1.4fr;
+            gap: 60px;
+            align-items: center;
+            padding: 80px 0;
+        }
+
+        .hero-content h1 {
+            font-size: 52px;
+            font-weight: 800;
+            margin-bottom: 24px;
+            line-height: 1.1;
+            color: var(--color-text);
+            letter-spacing: -0.02em;
+        }
+
+        .hero-content h1 .accent {
+            background: linear-gradient(135deg, var(--color-action), #ff6b35);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-content p {
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--color-text-muted);
+            margin-bottom: 40px;
+            line-height: 1.8;
+            max-width: 580px;
+        }
+
+        .cta-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: var(--color-action);
+            color: var(--color-surface);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .btn-primary:hover {
+            background: var(--color-action-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 0 48px rgba(250, 133, 55, 0.35);
+        }
+
+        .btn-secondary {
+            background: var(--color-surface-card);
+            color: var(--color-text);
+            border: 1.5px solid var(--color-border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--color-action);
+            color: var(--color-action);
+            background: var(--color-surface-card-hover);
+        }
+
+        /* Device Showcase */
+        .device-showcase {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 550px;
+            perspective: 1200px;
+        }
+
+        .devices-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+
+        .phone-device {
+            position: absolute;
+            left: 0;
+            width: 180px;
+            aspect-ratio: 9/16;
+            background: #000;
+            border: 10px solid #000;
+            border-radius: 35px;
+            padding: 8px;
+            box-shadow: var(--shadow-lg), 0 0 40px rgba(250, 133, 55, 0.25);
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            z-index: 3;
+        }
+
+        .phone-device:hover {
+            transform: translateY(-8px) scale(1.08);
+            box-shadow: var(--shadow-lg), 0 0 50px rgba(250, 133, 55, 0.35);
+        }
+
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--color-action), #ff6b35);
+            border-radius: 28px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            overflow: hidden;
+            padding: 12px;
+        }
+
+        .phone-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            width: 100%;
+            padding: 8px;
+        }
+
+        .phone-btn {
+            aspect-ratio: 1;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            border-radius: 12px;
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .phone-btn:hover {
+            background: rgba(255, 255, 255, 0.35);
+            border-color: rgba(255, 255, 255, 0.6);
+            transform: scale(1.08);
+        }
+
+        .phone-btn.clicked {
+            animation: buttonPress 0.5s ease-out;
+        }
+
+        @keyframes buttonPress {
+            0% { transform: scale(1.15); background: rgba(255, 255, 255, 0.45); }
+            50% { transform: scale(0.92); }
+            100% { transform: scale(1); background: rgba(255, 255, 255, 0.2); }
+        }
+
+        .pc-device {
+            position: absolute;
+            right: 0;
+            width: 520px;
+            aspect-ratio: 16/10;
+            background: #000;
+            border: 14px solid #000;
+            border-radius: 18px;
+            padding: 12px;
+            box-shadow: var(--shadow-lg);
+            z-index: 2;
+            overflow: hidden;
+        }
+
+        .pc-screen {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--color-surface-elevated), var(--color-surface));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--color-border-subtle);
+        }
+
+        .pc-content {
+            text-align: center;
+            opacity: 0;
+            transform: scale(0.7);
+            transition: all var(--transition-normal);
+        }
+
+        .pc-content.show {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .pc-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            display: block;
+            filter: drop-shadow(0 4px 12px rgba(250, 133, 55, 0.2));
+        }
+
+        .pc-label {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--color-text);
+            letter-spacing: -0.02em;
+        }
+
+        .connection-line {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 80px;
+            height: 2px;
+            background: var(--color-action);
+            opacity: 0;
+        }
+
+        .connection-line.active {
+            animation: flowActive 0.6s ease-out;
+        }
+
+        @keyframes flowActive {
+            0% { width: 80px; opacity: 0; }
+            50% { width: 120px; opacity: 1; }
+            100% { width: 80px; opacity: 0; }
+        }
+
+        /* Features */
+        .features {
+            padding: 80px 0;
+            border-top: 1px solid var(--color-border);
+        }
+
+        .features h2 {
+            font-size: 36px;
+            margin-bottom: 50px;
+            color: var(--color-text);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+        }
+
+        .feature-card {
+            background: var(--color-surface-card);
+            border: 1px solid var(--color-border);
+            padding: 32px 28px;
+            border-radius: var(--radius-md);
+            transition: all var(--transition-normal);
+        }
+
+        .feature-card:hover {
+            border-color: var(--color-action);
+            background: var(--color-surface-card-hover);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .feature-icon {
+            font-size: 36px;
+            margin-bottom: 16px;
+            filter: drop-shadow(0 2px 4px rgba(250, 133, 55, 0.1));
+        }
+
+        .feature-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--color-text);
+            margin-bottom: 10px;
+        }
+
+        .feature-desc {
+            font-size: 14px;
+            color: var(--color-text-subtle);
+            line-height: 1.7;
+            font-weight: 500;
+        }
+
+        /* Languages */
+        .languages {
+            padding: 80px 0;
+        }
+
+        .languages h2 {
+            text-align: center;
+            font-size: 36px;
+            margin-bottom: 40px;
+        }
+
+        .languages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 16px;
+        }
+
+        .language-badge {
+            background: var(--color-surface-card);
+            border: 1px solid var(--color-action);
+            color: var(--color-text);
+            padding: 16px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        /* Footer */
+        footer {
+            padding: 40px 0;
+            border-top: 1px solid var(--color-border);
+            text-align: center;
+            color: var(--color-text-subtle);
+        }
+
+        .footer-links {
+            margin-bottom: 20px;
+        }
+
+        .footer-links a {
+            color: var(--color-action);
+            text-decoration: none;
+            margin: 0 20px;
+            transition: all 0.2s;
+        }
+
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 1024px) {
+            .hero {
+                grid-template-columns: 1fr;
+                padding: 60px 0;
+            }
+
+            .devices-container {
+                min-height: 350px;
+            }
+
+            .phone-device {
+                width: 140px;
+                left: 20px;
+            }
+
+            .pc-device {
+                width: 320px;
+                right: 20px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-group {
+                flex-direction: column;
+                gap: 10px;
+                width: 100%;
+            }
+
+            .lang-selector {
+                width: 100%;
+                justify-content: center;
+            }
+
+            header {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .hero-content h1 {
+                font-size: 32px;
+            }
+
+            .devices-container {
+                aspect-ratio: auto;
+                height: 300px;
+            }
+
+            .phone-device {
+                width: 120px;
+                left: 10px;
+            }
+
+            .pc-device {
+                width: 240px;
+                right: 10px;
+            }
+
+            .cta-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        .hidden { display: none; }
+        [data-lang] { display: none; }
+        [data-lang].active { display: inline; }
+        h1[data-lang], h2[data-lang], p[data-lang] { display: block; }
+        h1[data-lang].active, h2[data-lang].active, p[data-lang].active { display: block; }
+        span[data-lang].active, div[data-lang].active { display: inline; }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="container">
+        <div class="logo">
+            <span>EzDeck</span>
+        </div>
+        <div class="nav-group">
+            <div class="lang-selector" id="languageSelector"></div>
+            <button class="theme-toggle" id="themeToggle" title="Alternar tema">🌙</button>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero container">
+            <div class="hero-content">
+                <h1 data-lang="pt" class="active">Seu celular virou um <span class="accent">Stream Deck</span> no Windows</h1>
+                <h1 data-lang="en" class="hidden">Your phone is now a <span class="accent">Stream Deck</span> on Windows</h1>
+                <h1 data-lang="es" class="hidden">Tu teléfono es ahora un <span class="accent">Stream Deck</span> en Windows</h1>
+                <h1 data-lang="ja" class="hidden">あなたのスマートフォンが Windowsの<span class="accent">Stream Deck</span>に</h1>
+                <h1 data-lang="it" class="hidden">Il tuo telefono è ora un <span class="accent">Stream Deck</span> su Windows</h1>
+                <h1 data-lang="fr" class="hidden">Votre téléphone est maintenant un <span class="accent">Stream Deck</span> sur Windows</h1>
+                <h1 data-lang="de" class="hidden">Ihr Telefon ist jetzt ein <span class="accent">Stream Deck</span> auf Windows</h1>
+                <h1 data-lang="zh" class="hidden">你的手机现在是 Windows 上的<span class="accent">Stream Deck</span></h1>
+
+                <p data-lang="pt" class="active">Controle OBS, Discord, Spotify e atalhos do Windows direto do seu Android ou navegador. 100% local, sem nuvem, sem latência.</p>
+                <p data-lang="en" class="hidden">Control OBS, Discord, Spotify, and Windows shortcuts right from your Android or browser. 100% local, no cloud, no latency.</p>
+                <p data-lang="es" class="hidden">Controla OBS, Discord, Spotify y atajos de Windows directamente desde tu Android o navegador. 100% local, sin nube, sin latencia.</p>
+                <p data-lang="ja" class="hidden">Android やブラウザから OBS、Discord、Spotify、Windows ショートカットを直接制御します。100% ローカル、クラウドなし、レイテンシーなし。</p>
+                <p data-lang="it" class="hidden">Controlla OBS, Discord, Spotify e scorciatoie di Windows direttamente dal tuo Android o browser. 100% locale, senza cloud, senza latenza.</p>
+                <p data-lang="fr" class="hidden">Contrôlez OBS, Discord, Spotify et les raccourcis Windows directement depuis votre Android ou navigateur. 100% local, pas de cloud, pas de latence.</p>
+                <p data-lang="de" class="hidden">Steuern Sie OBS, Discord, Spotify und Windows-Verknüpfungen direkt von Ihrem Android oder Browser. 100% lokal, keine Cloud, keine Latenz.</p>
+                <p data-lang="zh" class="hidden">直接从您的 Android 或浏览器控制 OBS、Discord、Spotify 和 Windows 快捷方式。100% 本地，无云，无延迟。</p>
+
+                <div class="cta-group">
+                    <a href="https://github.com/eddesignerez/EzDeck/releases" class="btn btn-primary">
+                        📥 <span data-lang="pt" class="active">Baixar Windows</span>
+                        <span data-lang="en" class="hidden">Download Windows</span>
+                        <span data-lang="es" class="hidden">Descargar Windows</span>
+                        <span data-lang="ja" class="hidden">Windowsをダウンロード</span>
+                        <span data-lang="it" class="hidden">Scarica Windows</span>
+                        <span data-lang="fr" class="hidden">Télécharger Windows</span>
+                        <span data-lang="de" class="hidden">Windows Herunterladen</span>
+                        <span data-lang="zh" class="hidden">下载 Windows</span>
+                    </a>
+                    <a href="https://github.com/eddesignerez/EzDeck" class="btn btn-secondary">
+                        🔗 <span data-lang="pt" class="active">GitHub</span>
+                        <span data-lang="en" class="hidden">GitHub</span>
+                        <span data-lang="es" class="hidden">GitHub</span>
+                        <span data-lang="ja" class="hidden">GitHub</span>
+                        <span data-lang="it" class="hidden">GitHub</span>
+                        <span data-lang="fr" class="hidden">GitHub</span>
+                        <span data-lang="de" class="hidden">GitHub</span>
+                        <span data-lang="zh" class="hidden">GitHub</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Device Showcase -->
+            <div class="device-showcase">
+                <div class="devices-container">
+                    <div class="phone-device" id="phoneDevice">
+                        <div class="phone-screen">
+                            <div class="phone-buttons" id="phoneButtons">
+                                <button class="phone-btn" data-action="obs">OBS</button>
+                                <button class="phone-btn" data-action="discord">Discord</button>
+                                <button class="phone-btn" data-action="spotify">Spotify</button>
+                                <button class="phone-btn" data-action="record">REC</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connection-line" id="connectionLine"></div>
+
+                    <div class="pc-device">
+                        <div class="pc-screen">
+                            <div class="pc-content" id="pcContent">
+                                <span class="pc-icon" id="pcIcon">💻</span>
+                                <span class="pc-label" id="pcLabel" data-lang="pt" class="active">Esperando...</span>
+                                <span class="pc-label" id="pcLabel" data-lang="en" class="hidden">Waiting...</span>
+                                <span class="pc-label" id="pcLabel" data-lang="es" class="hidden">Esperando...</span>
+                                <span class="pc-label" id="pcLabel" data-lang="ja" class="hidden">待機中...</span>
+                                <span class="pc-label" id="pcLabel" data-lang="it" class="hidden">In attesa...</span>
+                                <span class="pc-label" id="pcLabel" data-lang="fr" class="hidden">En attente...</span>
+                                <span class="pc-label" id="pcLabel" data-lang="de" class="hidden">Warten...</span>
+                                <span class="pc-label" id="pcLabel" data-lang="zh" class="hidden">等待中...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features -->
+        <section class="features">
+            <div class="container">
+                <h2 data-lang="pt" class="active">Recursos Principais</h2>
+                <h2 data-lang="en" class="hidden">Key Features</h2>
+                <h2 data-lang="es" class="hidden">Características Principales</h2>
+                <h2 data-lang="ja" class="hidden">主な機能</h2>
+                <h2 data-lang="it" class="hidden">Caratteristiche Principali</h2>
+                <h2 data-lang="fr" class="hidden">Caractéristiques Principales</h2>
+                <h2 data-lang="de" class="hidden">Hauptmerkmale</h2>
+                <h2 data-lang="zh" class="hidden">主要特性</h2>
+
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🔒</div>
+                        <div class="feature-title" data-lang="pt" class="active">100% Local</div>
+                        <div class="feature-title" data-lang="en" class="hidden">100% Local</div>
+                        <div class="feature-title" data-lang="es" class="hidden">100% Local</div>
+                        <div class="feature-title" data-lang="ja" class="hidden">100%ローカル</div>
+                        <div class="feature-title" data-lang="it" class="hidden">100% Locale</div>
+                        <div class="feature-title" data-lang="fr" class="hidden">100% Local</div>
+                        <div class="feature-title" data-lang="de" class="hidden">100% Lokal</div>
+                        <div class="feature-title" data-lang="zh" class="hidden">100%本地</div>
+                        <p class="feature-desc" data-lang="pt" class="active">Sem nuvem, sem dados saindo da sua rede</p>
+                        <p class="feature-desc" data-lang="en" class="hidden">No cloud, no data leaving your network</p>
+                        <p class="feature-desc" data-lang="es" class="hidden">Sin nube, sin datos saliendo de tu red</p>
+                        <p class="feature-desc" data-lang="ja" class="hidden">クラウドなし、ネットワークからデータが出ない</p>
+                        <p class="feature-desc" data-lang="it" class="hidden">Senza cloud, nessun dato che esce dalla tua rete</p>
+                        <p class="feature-desc" data-lang="fr" class="hidden">Pas de cloud, aucune donnée ne quitte votre réseau</p>
+                        <p class="feature-desc" data-lang="de" class="hidden">Keine Cloud, keine Daten, die Ihr Netzwerk verlassen</p>
+                        <p class="feature-desc" data-lang="zh" class="hidden">无云，无数据离开您的网络</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <div class="feature-title" data-lang="pt" class="active">Instantâneo</div>
+                        <div class="feature-title" data-lang="en" class="hidden">Instant</div>
+                        <div class="feature-title" data-lang="es" class="hidden">Instantáneo</div>
+                        <div class="feature-title" data-lang="ja" class="hidden">瞬時</div>
+                        <div class="feature-title" data-lang="it" class="hidden">Istantaneo</div>
+                        <div class="feature-title" data-lang="fr" class="hidden">Instantané</div>
+                        <div class="feature-title" data-lang="de" class="hidden">Sofort</div>
+                        <div class="feature-title" data-lang="zh" class="hidden">即时</div>
+                        <p class="feature-desc" data-lang="pt" class="active">Resposta em milissegundos via WebSocket</p>
+                        <p class="feature-desc" data-lang="en" class="hidden">Response in milliseconds via WebSocket</p>
+                        <p class="feature-desc" data-lang="es" class="hidden">Respuesta en milisegundos vía WebSocket</p>
+                        <p class="feature-desc" data-lang="ja" class="hidden">WebSocket経由でミリ秒単位で応答</p>
+                        <p class="feature-desc" data-lang="it" class="hidden">Risposta in millisecondi tramite WebSocket</p>
+                        <p class="feature-desc" data-lang="fr" class="hidden">Réponse en millisecondes via WebSocket</p>
+                        <p class="feature-desc" data-lang="de" class="hidden">Antwort in Millisekunden über WebSocket</p>
+                        <p class="feature-desc" data-lang="zh" class="hidden">通过 WebSocket 毫秒级响应</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">🎛️</div>
+                        <div class="feature-title" data-lang="pt" class="active">40 Botões</div>
+                        <div class="feature-title" data-lang="en" class="hidden">40 Buttons</div>
+                        <div class="feature-title" data-lang="es" class="hidden">40 Botones</div>
+                        <div class="feature-title" data-lang="ja" class="hidden">40個のボタン</div>
+                        <div class="feature-title" data-lang="it" class="hidden">40 Pulsanti</div>
+                        <div class="feature-title" data-lang="fr" class="hidden">40 Boutons</div>
+                        <div class="feature-title" data-lang="de" class="hidden">40 Tasten</div>
+                        <div class="feature-title" data-lang="zh" class="hidden">40个按钮</div>
+                        <p class="feature-desc" data-lang="pt" class="active">8 botões em 5 páginas customizáveis</p>
+                        <p class="feature-desc" data-lang="en" class="hidden">8 buttons across 5 customizable pages</p>
+                        <p class="feature-desc" data-lang="es" class="hidden">8 botones en 5 páginas personalizables</p>
+                        <p class="feature-desc" data-lang="ja" class="hidden">5ページにわたる8つのカスタマイズ可能なボタン</p>
+                        <p class="feature-desc" data-lang="it" class="hidden">8 pulsanti su 5 pagine personalizzabili</p>
+                        <p class="feature-desc" data-lang="fr" class="hidden">8 boutons sur 5 pages personnalisables</p>
+                        <p class="feature-desc" data-lang="de" class="hidden">8 Tasten auf 5 anpassbaren Seiten</p>
+                        <p class="feature-desc" data-lang="zh" class="hidden">5页上的8个可自定义按钮</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">🎬</div>
+                        <div class="feature-title" data-lang="pt" class="active">OBS Integrado</div>
+                        <div class="feature-title" data-lang="en" class="hidden">OBS Integrated</div>
+                        <div class="feature-title" data-lang="es" class="hidden">OBS Integrado</div>
+                        <div class="feature-title" data-lang="ja" class="hidden">OBS統合</div>
+                        <div class="feature-title" data-lang="it" class="hidden">OBS Integrato</div>
+                        <div class="feature-title" data-lang="fr" class="hidden">OBS Intégré</div>
+                        <div class="feature-title" data-lang="de" class="hidden">OBS Integriert</div>
+                        <div class="feature-title" data-lang="zh" class="hidden">OBS集成</div>
+                        <p class="feature-desc" data-lang="pt" class="active">Controle OBS nativo via WebSocket</p>
+                        <p class="feature-desc" data-lang="en" class="hidden">Native OBS control via WebSocket</p>
+                        <p class="feature-desc" data-lang="es" class="hidden">Control nativo de OBS vía WebSocket</p>
+                        <p class="feature-desc" data-lang="ja" class="hidden">WebSocket経由のネイティブOBS制御</p>
+                        <p class="feature-desc" data-lang="it" class="hidden">Controllo OBS nativo tramite WebSocket</p>
+                        <p class="feature-desc" data-lang="fr" class="hidden">Contrôle OBS natif via WebSocket</p>
+                        <p class="feature-desc" data-lang="de" class="hidden">Natives OBS-Steuern über WebSocket</p>
+                        <p class="feature-desc" data-lang="zh" class="hidden">通过 WebSocket 的本地 OBS 控制</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">📱</div>
+                        <div class="feature-title" data-lang="pt" class="active">Android + PWA</div>
+                        <div class="feature-title" data-lang="en" class="hidden">Android + PWA</div>
+                        <div class="feature-title" data-lang="es" class="hidden">Android + PWA</div>
+                        <div class="feature-title" data-lang="ja" class="hidden">Android + PWA</div>
+                        <div class="feature-title" data-lang="it" class="hidden">Android + PWA</div>
+                        <div class="feature-title" data-lang="fr" class="hidden">Android + PWA</div>
+                        <div class="feature-title" data-lang="de" class="hidden">Android + PWA</div>
+                        <div class="feature-title" data-lang="zh" class="hidden">Android + PWA</div>
+                        <p class="feature-desc" data-lang="pt" class="active">App nativa e navegador (iOS)</p>
+                        <p class="feature-desc" data-lang="en" class="hidden">Native app and browser (iOS)</p>
+                        <p class="feature-desc" data-lang="es" class="hidden">App nativa y navegador (iOS)</p>
+                        <p class="feature-desc" data-lang="ja" class="hidden">ネイティブアプリとブラウザ（iOS）</p>
+                        <p class="feature-desc" data-lang="it" class="hidden">App nativa e browser (iOS)</p>
+                        <p class="feature-desc" data-lang="fr" class="hidden">Application native et navigateur (iOS)</p>
+                        <p class="feature-desc" data-lang="de" class="hidden">Native App und Browser (iOS)</p>
+                        <p class="feature-desc" data-lang="zh" class="hidden">原生应用和浏览器（iOS）</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">⌨️</div>
+                        <div class="feature-title" data-lang="pt" class="active">Atalhos</div>
+                        <div class="feature-title" data-lang="en" class="hidden">Shortcuts</div>
+                        <div class="feature-title" data-lang="es" class="hidden">Atajos</div>
+                        <div class="feature-title" data-lang="ja" class="hidden">ショートカット</div>
+                        <div class="feature-title" data-lang="it" class="hidden">Scorciatoie</div>
+                        <div class="feature-title" data-lang="fr" class="hidden">Raccourcis</div>
+                        <div class="feature-title" data-lang="de" class="hidden">Verknüpfungen</div>
+                        <div class="feature-title" data-lang="zh" class="hidden">快捷方式</div>
+                        <p class="feature-desc" data-lang="pt" class="active">Qualquer combinação de teclado</p>
+                        <p class="feature-desc" data-lang="en" class="hidden">Any keyboard combination</p>
+                        <p class="feature-desc" data-lang="es" class="hidden">Cualquier combinación de teclado</p>
+                        <p class="feature-desc" data-lang="ja" class="hidden">任意のキーボード組み合わせ</p>
+                        <p class="feature-desc" data-lang="it" class="hidden">Qualsiasi combinazione di tastiera</p>
+                        <p class="feature-desc" data-lang="fr" class="hidden">Toute combinaison de clavier</p>
+                        <p class="feature-desc" data-lang="de" class="hidden">Beliebige Tastenkombination</p>
+                        <p class="feature-desc" data-lang="zh" class="hidden">任何键盘组合</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Languages -->
+        <section class="languages container">
+            <h2 data-lang="pt" class="active">Idiomas Suportados</h2>
+            <h2 data-lang="en" class="hidden">Supported Languages</h2>
+            <h2 data-lang="es" class="hidden">Idiomas Soportados</h2>
+            <h2 data-lang="ja" class="hidden">対応言語</h2>
+            <h2 data-lang="it" class="hidden">Lingue Supportate</h2>
+            <h2 data-lang="fr" class="hidden">Langues Supportées</h2>
+            <h2 data-lang="de" class="hidden">Unterstützte Sprachen</h2>
+            <h2 data-lang="zh" class="hidden">支持的语言</h2>
+
+            <div class="languages-grid">
+                <div class="language-badge">🇧🇷 Português</div>
+                <div class="language-badge">🇺🇸 English</div>
+                <div class="language-badge">🇪🇸 Español</div>
+                <div class="language-badge">🇯🇵 日本語</div>
+                <div class="language-badge">🇮🇹 Italiano</div>
+                <div class="language-badge">🇫🇷 Français</div>
+                <div class="language-badge">🇩🇪 Deutsch</div>
+                <div class="language-badge">🇨🇳 中文</div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="container">
+        <div class="footer-links">
+            <a href="https://github.com/eddesignerez/EzDeck">GitHub</a>
+            <a href="https://github.com/eddesignerez/EzDeck/releases">Releases</a>
+            <a href="https://github.com/eddesignerez/EzDeck/issues">Issues</a>
+        </div>
+        <p data-lang="pt" class="active">© 2024 EzDeck. Inspirado em Dokke. Feito com ❤️</p>
+        <p data-lang="en" class="hidden">© 2024 EzDeck. Inspired by Dokke. Made with ❤️</p>
+        <p data-lang="es" class="hidden">© 2024 EzDeck. Inspirado en Dokke. Hecho con ❤️</p>
+        <p data-lang="ja" class="hidden">© 2024 EzDeck. Dokkeに触発されました。❤️で作られました</p>
+        <p data-lang="it" class="hidden">© 2024 EzDeck. Ispirato da Dokke. Fatto con ❤️</p>
+        <p data-lang="fr" class="hidden">© 2024 EzDeck. Inspiré par Dokke. Fait avec ❤️</p>
+        <p data-lang="de" class="hidden">© 2024 EzDeck. Von Dokke inspiriert. Mit ❤️ gemacht</p>
+        <p data-lang="zh" class="hidden">© 2024 EzDeck. 受 Dokke 启发。用 ❤️ 制作</p>
+    </footer>
+
+    <script>
+        const LANGUAGES = {
+            pt: { name: '🇧🇷 Português' },
+            en: { name: '🇺🇸 English' },
+            es: { name: '🇪🇸 Español' },
+            ja: { name: '🇯🇵 日本語' },
+            it: { name: '🇮🇹 Italiano' },
+            fr: { name: '🇫🇷 Français' },
+            de: { name: '🇩🇪 Deutsch' },
+            zh: { name: '🇨🇳 中文' }
+        };
+
+        const ACTION_MESSAGES = {
+            obs: { pt: 'Iniciando OBS', en: 'Starting OBS', es: 'Iniciando OBS', ja: 'OBSを開始', it: 'Avvio OBS', fr: 'Lancement OBS', de: 'OBS starten', zh: '启动 OBS' },
+            discord: { pt: 'Abrindo Discord', en: 'Opening Discord', es: 'Abriendo Discord', ja: 'Discordを開く', it: 'Apertura Discord', fr: 'Ouverture Discord', de: 'Discord öffnen', zh: '打开 Discord' },
+            spotify: { pt: 'Abrindo Spotify', en: 'Opening Spotify', es: 'Abriendo Spotify', ja: 'Spotifyを開く', it: 'Apertura Spotify', fr: 'Ouverture Spotify', de: 'Spotify öffnen', zh: '打开 Spotify' },
+            record: { pt: 'Iniciando Gravação', en: 'Starting Recording', es: 'Iniciando Grabación', ja: '録画を開始', it: 'Avvio Registrazione', fr: 'Démarrage enregistrement', de: 'Aufzeichnung starten', zh: '开始录制' }
+        };
+
+        const ACTION_ICONS = {
+            obs: '🎬',
+            discord: '💬',
+            spotify: '🎵',
+            record: '⏺️'
+        };
+
+        let currentLang = localStorage.getItem('ezdeck-lang') || 'pt';
+        let currentTheme = localStorage.getItem('ezdeck-theme') || 'dark';
+
+        document.documentElement.setAttribute('data-theme', currentTheme);
+        initLanguageSelector();
+        setLanguage(currentLang);
+        setupPhoneInteraction();
+        setupThemeToggle();
+
+        function initLanguageSelector() {
+            const selector = document.getElementById('languageSelector');
+            Object.entries(LANGUAGES).forEach(([code, lang]) => {
+                const btn = document.createElement('button');
+                btn.className = `lang-btn ${code === currentLang ? 'active' : ''}`;
+                btn.textContent = lang.name;
+                btn.onclick = () => setLanguage(code);
+                selector.appendChild(btn);
+            });
+        }
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('ezdeck-lang', lang);
+
+            document.querySelectorAll('[data-lang]').forEach(el => {
+                if (el.getAttribute('data-lang') === lang) {
+                    el.classList.add('active');
+                } else {
+                    el.classList.remove('active');
+                }
+            });
+
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent === LANGUAGES[lang].name);
+            });
+        }
+
+        function setupPhoneInteraction() {
+            document.querySelectorAll('.phone-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const action = btn.dataset.action;
+                    const msg = ACTION_MESSAGES[action][currentLang] || ACTION_MESSAGES[action].pt;
+                    const icon = ACTION_ICONS[action];
+
+                    btn.classList.add('clicked');
+                    setTimeout(() => btn.classList.remove('clicked'), 600);
+
+                    const line = document.getElementById('connectionLine');
+                    line.classList.add('active');
+                    setTimeout(() => line.classList.remove('active'), 600);
+
+                    const pcContent = document.getElementById('pcContent');
+                    const pcIcon = document.getElementById('pcIcon');
+                    const pcLabel = document.getElementById('pcLabel');
+
+                    pcContent.classList.remove('show');
+                    setTimeout(() => {
+                        pcIcon.textContent = icon;
+                        pcLabel.textContent = msg;
+                        pcContent.classList.add('show');
+                    }, 100);
+                });
+            });
+        }
+
+        function setupThemeToggle() {
+            const btn = document.getElementById('themeToggle');
+            updateThemeButton();
+
+            btn.addEventListener('click', () => {
+                currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', currentTheme);
+                localStorage.setItem('ezdeck-theme', currentTheme);
+                updateThemeButton();
+            });
+        }
+
+        function updateThemeButton() {
+            const btn = document.getElementById('themeToggle');
+            btn.textContent = currentTheme === 'dark' ? '☀️' : '🌙';
+        }
+    </script>
+</body>
+</html>
