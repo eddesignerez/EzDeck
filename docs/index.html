@@ -3,54 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EzDeck - Stream Deck Gratuito para Windows</title>
-    <meta name="description" content="Transforme seu celular em um Stream Deck. Controle Windows, OBS, Discord do seu Android ou navegador. 100% local, sem nuvem.">
+    <title>EzDeck — O Stream Deck gratuito e 100% local para Windows</title>
+    <meta name="description" content="Transforme seu celular ou tablet antigo em um Stream Deck para Windows. Controle OBS, Discord, Spotify e atalhos com zero nuvem e latência de milissegundos.">
+    <meta name="og:title" content="EzDeck — Transforme seu celular em um Stream Deck no Windows">
+    <meta name="og:description" content="Painel de atalhos local para Windows a partir de Android, tablet ou navegador. 40 botões, 5 páginas, zero nuvem e latência ultrabaixa.">
     <style>
         :root {
             color-scheme: dark;
-
-            /* Dark Theme - Obsidian & Terracotta */
             --color-action: #fa8537;
             --color-action-hover: #ff9d5c;
             --color-action-active: #e26e22;
             --color-action-glow: rgba(250, 133, 55, 0.4);
-
             --color-surface: #0e0502;
             --color-surface-elevated: #1a0b06;
             --color-surface-card: rgba(36, 17, 10, 0.78);
             --color-surface-card-hover: rgba(56, 26, 16, 0.88);
             --color-glass-border: rgba(250, 133, 55, 0.18);
             --color-glass-border-hover: rgba(250, 133, 55, 0.48);
-
             --color-text: #fff6f0;
             --color-text-muted: #d4b29d;
             --color-text-subtle: #8f6d5a;
-
             --color-border: rgba(255, 255, 255, 0.08);
             --color-border-subtle: rgba(245, 177, 132, 0.15);
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --radius-lg: 24px;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
+            --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.5);
+            --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.65);
+            --shadow-glow: 0 0 35px rgba(250, 133, 55, 0.25);
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         :root[data-theme="light"] {
             color-scheme: light;
-
             --color-action: #f73b20;
             --color-action-hover: #d82a12;
             --color-action-active: #b5200b;
             --color-action-glow: rgba(247, 59, 32, 0.25);
-
             --color-surface: #ffffff;
             --color-surface-elevated: #fdf5f2;
             --color-surface-card: #ffffff;
             --color-surface-card-hover: #fcf1ed;
             --color-glass-border: rgba(247, 59, 32, 0.18);
             --color-glass-border-hover: rgba(247, 59, 32, 0.45);
-
             --color-text: #2c0803;
             --color-text-muted: #6b352b;
             --color-text-subtle: #966157;
-
             --color-border: rgba(54, 8, 2, 0.1);
             --color-border-subtle: rgba(247, 59, 32, 0.12);
+            --shadow-sm: 0 2px 8px rgba(54, 8, 2, 0.06);
+            --shadow-md: 0 8px 24px rgba(54, 8, 2, 0.08);
+            --shadow-lg: 0 20px 48px rgba(54, 8, 2, 0.12);
         }
 
         * {
@@ -90,34 +95,43 @@
 
         /* Header */
         header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 0;
-            border-bottom: 1px solid var(--color-border);
             position: sticky;
             top: 0;
-            background: rgba(14, 5, 2, 0.8);
-            backdrop-filter: blur(10px);
             z-index: 100;
+            background: rgba(14, 5, 2, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--color-border);
+            padding: 0 24px;
+            height: 76px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background var(--transition-normal);
         }
 
         :root[data-theme="light"] header {
-            background: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.88);
         }
 
         .logo {
-            font-size: 24px;
-            font-weight: 700;
+            font-size: 1.45rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
             display: flex;
-            align-items: center;
+            align-items: baseline;
             gap: 12px;
+            color: var(--color-text);
+        }
+
+        .logo span {
             color: var(--color-action);
         }
 
         .logo img {
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(250, 133, 55, 0.3);
         }
 
         .nav-group {
@@ -184,22 +198,28 @@
         }
 
         .hero-content h1 {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 20px;
-            line-height: 1.2;
+            font-size: 52px;
+            font-weight: 800;
+            margin-bottom: 24px;
+            line-height: 1.1;
             color: var(--color-text);
+            letter-spacing: -0.02em;
         }
 
         .hero-content h1 .accent {
-            color: var(--color-action);
+            background: linear-gradient(135deg, var(--color-action), #ff6b35);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .hero-content p {
             font-size: 18px;
+            font-weight: 500;
             color: var(--color-text-muted);
-            margin-bottom: 30px;
+            margin-bottom: 40px;
             line-height: 1.8;
+            max-width: 580px;
         }
 
         .cta-group {
@@ -211,37 +231,40 @@
         .btn {
             padding: 14px 28px;
             border: none;
-            border-radius: 8px;
+            border-radius: var(--radius-md);
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all var(--transition-fast);
             text-decoration: none;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            justify-content: center;
+            gap: 10px;
         }
 
         .btn-primary {
             background: var(--color-action);
             color: var(--color-surface);
-            box-shadow: 0 0 35px var(--color-action-glow);
+            box-shadow: var(--shadow-glow);
         }
 
         .btn-primary:hover {
             background: var(--color-action-hover);
             transform: translateY(-2px);
+            box-shadow: 0 0 48px rgba(250, 133, 55, 0.35);
         }
 
         .btn-secondary {
             background: var(--color-surface-card);
-            color: var(--color-action);
-            border: 2px solid var(--color-action);
+            color: var(--color-text);
+            border: 1.5px solid var(--color-border);
         }
 
         .btn-secondary:hover {
-            background: var(--color-action);
-            color: var(--color-surface);
+            border-color: var(--color-action);
+            color: var(--color-action);
+            background: var(--color-surface-card-hover);
         }
 
         /* Device Showcase */
@@ -249,8 +272,8 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 500px;
-            perspective: 1000px;
+            min-height: 550px;
+            perspective: 1200px;
         }
 
         .devices-container {
@@ -260,111 +283,110 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 40px;
         }
 
         .phone-device {
             position: absolute;
-            left: 50px;
-            width: 200px;
+            left: 0;
+            width: 180px;
             aspect-ratio: 9/16;
-            background: var(--color-text);
-            border: 8px solid var(--color-text);
-            border-radius: 30px;
-            padding: 6px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
+            background: #000;
+            border: 10px solid #000;
+            border-radius: 35px;
+            padding: 8px;
+            box-shadow: var(--shadow-lg), 0 0 40px rgba(250, 133, 55, 0.25);
             cursor: pointer;
-            transition: all 0.3s;
-            z-index: 2;
+            transition: all var(--transition-normal);
+            z-index: 3;
         }
 
         .phone-device:hover {
-            transform: scale(1.05);
-        }
-
-        .phone-device.active {
-            transform: scale(1.1);
+            transform: translateY(-8px) scale(1.08);
+            box-shadow: var(--shadow-lg), 0 0 50px rgba(250, 133, 55, 0.35);
         }
 
         .phone-screen {
             width: 100%;
             height: 100%;
             background: linear-gradient(135deg, var(--color-action), #ff6b35);
-            border-radius: 24px;
+            border-radius: 28px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: space-around;
             overflow: hidden;
-            position: relative;
+            padding: 12px;
         }
 
         .phone-buttons {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            padding: 16px;
+            gap: 12px;
             width: 100%;
+            padding: 8px;
         }
 
         .phone-btn {
             aspect-ratio: 1;
             background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            border-radius: 12px;
             color: white;
-            font-size: 9px;
-            font-weight: 600;
+            font-size: 10px;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all var(--transition-fast);
         }
 
         .phone-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            border-color: rgba(255, 255, 255, 0.5);
-            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.35);
+            border-color: rgba(255, 255, 255, 0.6);
+            transform: scale(1.08);
         }
 
         .phone-btn.clicked {
-            animation: buttonPress 0.6s ease-out;
+            animation: buttonPress 0.5s ease-out;
         }
 
         @keyframes buttonPress {
-            0% { transform: scale(1.1); background: rgba(255, 255, 255, 0.4); }
-            50% { transform: scale(0.95); }
+            0% { transform: scale(1.15); background: rgba(255, 255, 255, 0.45); }
+            50% { transform: scale(0.92); }
             100% { transform: scale(1); background: rgba(255, 255, 255, 0.2); }
         }
 
         .pc-device {
             position: absolute;
-            right: 50px;
-            width: 480px;
+            right: 0;
+            width: 520px;
             aspect-ratio: 16/10;
-            background: var(--color-text);
-            border: 12px solid var(--color-text);
-            border-radius: 16px;
-            padding: 10px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
-            z-index: 1;
+            background: #000;
+            border: 14px solid #000;
+            border-radius: 18px;
+            padding: 12px;
+            box-shadow: var(--shadow-lg);
+            z-index: 2;
             overflow: hidden;
         }
 
         .pc-screen {
             width: 100%;
             height: 100%;
-            background: var(--color-surface);
-            border-radius: 8px;
+            background: linear-gradient(135deg, var(--color-surface-elevated), var(--color-surface));
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
             overflow: hidden;
+            border: 1px solid var(--color-border-subtle);
         }
 
         .pc-content {
             text-align: center;
             opacity: 0;
-            transform: scale(0.8);
-            transition: all 0.6s ease-out;
+            transform: scale(0.7);
+            transition: all var(--transition-normal);
         }
 
         .pc-content.show {
@@ -373,15 +395,17 @@
         }
 
         .pc-icon {
-            font-size: 56px;
-            margin-bottom: 16px;
+            font-size: 64px;
+            margin-bottom: 20px;
             display: block;
+            filter: drop-shadow(0 4px 12px rgba(250, 133, 55, 0.2));
         }
 
         .pc-label {
-            font-size: 16px;
-            font-weight: 600;
+            font-size: 18px;
+            font-weight: 700;
             color: var(--color-text);
+            letter-spacing: -0.02em;
         }
 
         .connection-line {
@@ -425,32 +449,36 @@
         .feature-card {
             background: var(--color-surface-card);
             border: 1px solid var(--color-border);
-            padding: 24px;
-            border-radius: 12px;
-            transition: all 0.2s;
+            padding: 32px 28px;
+            border-radius: var(--radius-md);
+            transition: all var(--transition-normal);
         }
 
         .feature-card:hover {
             border-color: var(--color-action);
             background: var(--color-surface-card-hover);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
         }
 
         .feature-icon {
-            font-size: 28px;
-            margin-bottom: 12px;
+            font-size: 36px;
+            margin-bottom: 16px;
+            filter: drop-shadow(0 2px 4px rgba(250, 133, 55, 0.1));
         }
 
         .feature-title {
-            font-size: 16px;
-            font-weight: 600;
+            font-size: 17px;
+            font-weight: 700;
             color: var(--color-text);
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
 
         .feature-desc {
-            font-size: 13px;
+            font-size: 14px;
             color: var(--color-text-subtle);
-            line-height: 1.6;
+            line-height: 1.7;
+            font-weight: 500;
         }
 
         /* Languages */
