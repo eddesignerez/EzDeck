@@ -155,6 +155,11 @@ internal static class EzDeckInstaller {
     if (Path.GetDirectoryName(full) == null) throw new InvalidOperationException("Pasta de instalação inválida.");
     return full;
   }
+  private static bool IsLegacyUpdate(string executable, string appData) {
+    var updates = Path.GetFullPath(Path.Combine(appData, "EzDeck", "updates")).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+    var path = Path.GetFullPath(executable);
+    return path.StartsWith(updates, StringComparison.OrdinalIgnoreCase) && String.Equals(Path.GetFileName(path), "EzDeck-Setup.exe", StringComparison.OrdinalIgnoreCase);
+  }
   private static string ChooseTarget(string proposed) {
     using (var dialog = new Form()) {
       dialog.Text = "Instalar EzDeck __EZDECK_VERSION__";
@@ -211,14 +216,17 @@ internal static class EzDeckInstaller {
     }
     var launcher = Path.Combine(target, "EzDeck.vbs");
     Process.Start(new ProcessStartInfo("wscript.exe", "\"" + launcher + "\"") { WorkingDirectory = target, UseShellExecute = true });
+    var checkRestart = Path.Combine(target, "windows", "ensure-restart.ps1");
+    Process.Start(new ProcessStartInfo("powershell.exe", "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"" + checkRestart + "\" -InstallRoot \"" + target + "\"") { WorkingDirectory = target, UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden });
   }
   [STAThread]
   private static void Main() {
     try {
       var arguments = Environment.GetCommandLineArgs();
-      var quiet = arguments.Length == 4 && String.Equals(arguments[1], "/quiet", StringComparison.OrdinalIgnoreCase) && String.Equals(arguments[2], "/dir", StringComparison.OrdinalIgnoreCase);
+      var legacyUpdate = arguments.Length == 1 && IsLegacyUpdate(Assembly.GetExecutingAssembly().Location, Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
+      var quiet = legacyUpdate || (arguments.Length == 4 && String.Equals(arguments[1], "/quiet", StringComparison.OrdinalIgnoreCase) && String.Equals(arguments[2], "/dir", StringComparison.OrdinalIgnoreCase));
       if (arguments.Length > 1 && !quiet) throw new InvalidOperationException("Parâmetros de instalação inválidos.");
-      var target = quiet ? ValidateTarget(arguments[3]) : ChooseTarget(ExistingTarget());
+      var target = legacyUpdate ? ValidateTarget(ExistingTarget()) : quiet ? ValidateTarget(arguments[3]) : ChooseTarget(ExistingTarget());
       if (target == null) return;
       Install(target);
       if (!quiet) MessageBox.Show("EzDeck __EZDECK_VERSION__ instalado em:\r\n" + target, "Instalação concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);

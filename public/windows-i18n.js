@@ -33,6 +33,11 @@
   const style = document.createElement("style");
   style.textContent = `
     header{position:relative;z-index:200}.language-menu{z-index:201}.language-popover{z-index:202}
+    :root[data-theme="light"] .language-menu>button{background:#fff;border-color:var(--accent);color:var(--accent)}
+    :root[data-theme="light"] .language-menu>button:hover,:root[data-theme="light"] .language-menu>button:focus-visible{background:#fdedea}
+    :root[data-theme="light"] .language-popover{background:#fff;border-color:var(--line);box-shadow:0 18px 48px rgba(54,8,2,.15)}
+    :root[data-theme="light"] .language-popover button{color:var(--ink)}
+    :root[data-theme="light"] .language-popover button:hover,:root[data-theme="light"] .language-popover button:focus-visible,:root[data-theme="light"] .language-popover button[aria-checked=true]{background:#fdedea}
     .ezdeck-flag{width:22px;height:15px;display:inline-grid;place-items:center;flex:0 0 auto}
     .ezdeck-flag svg{width:22px;height:15px;display:block;border-radius:3px;box-shadow:0 0 0 1px rgba(255,255,255,.22)}
     :root[data-theme="dark"]{--bg:#07162e;--bg2:#0d2344;--glass:#0d1e39;--line:#31557f;--ink:#f2f7ff;--sub:#b7c8df;--accent:#ff6b57}

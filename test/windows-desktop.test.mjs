@@ -268,8 +268,17 @@ test("Windows control center uses the visual card deck and local host controls",
   });
   assert.equal(versionPosition.isInside, true);
   assert.equal(versionPosition.isRightAligned, true, 'a versão deve ficar no canto inferior direito do painel');
+  const lightLanguage = await page.locator('#language-toggle').evaluate(el => ({background:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color}));
+  const lightButton = await page.locator('#port').evaluate(el => ({background:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color}));
+  assert.deepEqual(lightLanguage, lightButton, 'o seletor de idioma acompanha os botões no modo claro');
+  await page.locator('#language-toggle').click();
+  assert.equal(await page.locator('#language-popover').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 255, 255)');
+  await page.locator('#language-toggle').click();
   await page.locator('#theme-toggle').click();
   assert.equal(await page.locator('html').getAttribute('data-theme'),'dark','modo escuro deve ser aplicado no painel Windows');
+  const darkLanguage = await page.locator('#language-toggle').evaluate(el => ({background:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color}));
+  const darkButton = await page.locator('#port').evaluate(el => ({background:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color}));
+  assert.deepEqual(darkLanguage, darkButton, 'o seletor de idioma continua acompanhando os botões no modo escuro');
   await page.reload();
   assert.equal(await page.locator('html').getAttribute('data-theme'),'dark','preferência de tema deve sobreviver à recarga');
   await page.locator('#start-with-windows').check();

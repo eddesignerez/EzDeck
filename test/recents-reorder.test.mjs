@@ -2,6 +2,36 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 import { startServer } from "../server.js";
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
+
+test("ícones claros recebem contraste apenas no tema claro", async t => {
+  const server=await startServer({port:0,config:{pinned:[]},obs:null,platform:{
+    appTools:{listInstalledApps:async()=>[],listAppProcesses:async()=>[{name:'Claro',pid:42},{name:'Colorido',pid:43}]},
+    iconService:{getIconPng:async()=>null},actions:{activateApp:async()=>{}},
+  }});
+  let browser;
+  t.after(async()=>{await browser?.close();await server.close()});
+  browser=await chromium.launch({headless:true,channel:process.platform==='win32'?'msedge':undefined});
+  const page=await browser.newPage({viewport:{width:900,height:405},hasTouch:true});
+  await page.addInitScript(()=>localStorage.setItem('ezdeck-theme','light'));
+  await page.route('**/api/apps/*/icon*', async route => {
+    const white=route.request().url().includes('/Claro/');
+    await route.fulfill({status:200,contentType:'image/svg+xml',body:`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><circle cx="32" cy="32" r="20" fill="${white?'white':'#ef4b2e'}"/></svg>`});
+  });
+  await page.goto(`http://127.0.0.1:${server.port}/`);
+  await page.locator('#vdots .d').nth(1).click();
+  const white=page.locator('.dcard[data-name="Claro"] img.aicon');
+  const color=page.locator('.dcard[data-name="Colorido"] img.aicon');
+  await white.waitFor(); await color.waitFor();
+  await page.waitForFunction(()=>document.querySelector('.dcard[data-name="Claro"] img')?.classList.contains('needs-light-contrast'));
+  assert.equal(await color.evaluate(el=>el.classList.contains('needs-light-contrast')),false);
+  assert.equal(await white.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(83, 96, 110)');
+  await mkdir(join(import.meta.dirname,'../.test-artifacts'),{recursive:true});
+  await page.screenshot({path:join(import.meta.dirname,'../.test-artifacts/light-icon-contrast.png')});
+  await page.locator('.theme-toggle').click();
+  assert.equal(await white.evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
+});
 
 test("versão do APK aparece somente em Apps Abertos, inclusive após voltar à primeira tela", async t => {
   const server=await startServer({port:0,config:{pinned:[]},obs:null,platform:{
