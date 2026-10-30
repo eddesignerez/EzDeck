@@ -880,6 +880,8 @@
   .atile .aglass .gicon,.atile .aglass img.aicon{width:54%!important;height:54%!important;max-width:54%!important;max-height:54%!important;object-fit:contain!important;border-radius:18%!important}
   .atile.custom-icon .aglass img.aicon{width:70%!important;height:70%!important;max-width:70%!important;max-height:70%!important}
   .dcard .aglass .gicon,.dcard .aglass img.aicon{width:58%!important;height:58%!important;object-fit:contain!important;border-radius:18%!important}
+  /* Somente logos claros recebem apoio escuro no tema claro; a imagem não é recolorida. */
+  html:not(.dark-mode) .aglass img.aicon.needs-light-contrast{background:#53606e}
   .atile .aglass,.dcard .aglass{overflow:hidden}
 
   .command-notice{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);z-index:90;pointer-events:none;padding:9px 16px;border-radius:12px;background:#360802;color:white;font:500 13px system-ui;max-width:90vw;text-align:center;opacity:0}
@@ -1704,6 +1706,22 @@
     if (img && img.isConnected) img.remove();
     if (target && !target.querySelector(".gicon")) target.appendChild(giconEl(name));
   }
+  function markLightIcon(img){
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 32;
+      const ctx = canvas.getContext("2d", { willReadFrequently:true });
+      ctx.drawImage(img, 0, 0, 32, 32);
+      const pixels = ctx.getImageData(0, 0, 32, 32).data;
+      let visible = 0, light = 0, transparent = 0;
+      for (let i = 0; i < pixels.length; i += 4){
+        if (pixels[i + 3] < 32){ transparent++; continue; }
+        visible++;
+        if (pixels[i] >= 210 && pixels[i + 1] >= 210 && pixels[i + 2] >= 210) light++;
+      }
+      img.classList.toggle("needs-light-contrast", visible >= 8 && transparent >= 8 && light / visible >= .7);
+    } catch (e) { img.classList.remove("needs-light-contrast"); }
+  }
   function websiteFaviconPath(raw){
     try {
       const u = new URL(raw);
@@ -1796,6 +1814,7 @@
     img.addEventListener("load", function(){
       img.dataset.iconLoaded = "1";
       img.classList.add("ready");
+      if (a.type === "app") markLightIcon(img);
       if (a.type === "app" && !iconCache.has(a.name) && img.currentSrc) iconCache.set(a.name, img.currentSrc);
     });
     img.addEventListener("error", function(){
@@ -2108,6 +2127,7 @@
     img.addEventListener("load", function(){
       img.dataset.iconLoaded = "1";
       img.classList.add("ready");
+      markLightIcon(img);
       if (!iconCache.has(name) && img.currentSrc) iconCache.set(name, img.currentSrc);
     });
     img.addEventListener("error", function(){ iconFallback(img, glass, name); });
