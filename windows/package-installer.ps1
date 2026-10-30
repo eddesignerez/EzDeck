@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([string]$Output)
 
 $ErrorActionPreference = 'Stop'
@@ -184,7 +184,29 @@ internal static class EzDeckInstaller {
       return null;
     }
   }
-  private static void Install(string target) {
+  private sealed class InstallProgress : IDisposable {
+    private readonly Form dialog;
+    private readonly Label label;
+    private readonly ProgressBar bar;
+    public InstallProgress() {
+      dialog = new Form { Text = "Instalando EzDeck", ClientSize = new System.Drawing.Size(460, 120), StartPosition = FormStartPosition.CenterScreen, FormBorderStyle = FormBorderStyle.FixedDialog, ControlBox = false };
+      label = new Label { Text = "Preparando a instalação", Location = new System.Drawing.Point(20, 20), Size = new System.Drawing.Size(420, 30) };
+      bar = new ProgressBar { Location = new System.Drawing.Point(20, 65), Size = new System.Drawing.Size(420, 22), Maximum = 10000, Style = ProgressBarStyle.Marquee };
+      dialog.Controls.AddRange(new Control[] { label, bar });
+      dialog.Show(); Application.DoEvents();
+    }
+    public void Report(long completed, long total) {
+      bar.Style = ProgressBarStyle.Continuous;
+      bar.Value = total > 0 ? (int)Math.Min(10000, completed * 10000 / total) : 0;
+      label.Text = "Instalando arquivos: " + (bar.Value / 100) + "%";
+      Application.DoEvents();
+    }
+    public void Phase(string text) {
+      bar.Style = ProgressBarStyle.Marquee; label.Text = text; Application.DoEvents();
+    }
+    public void Dispose() { dialog.Close(); dialog.Dispose(); }
+  }
+  private static void Install(string target, InstallProgress progress) {
     Directory.CreateDirectory(target);
     var archive = Path.Combine(Path.GetTempPath(), "EzDeck-" + Guid.NewGuid().ToString("N") + ".zip");
     try {
@@ -193,16 +215,27 @@ internal static class EzDeckInstaller {
         using (var output = File.Create(archive)) input.CopyTo(output);
       }
       using (var zip = ZipFile.OpenRead(archive)) {
+        long total = 0, completed = 0;
+        foreach (var item in zip.Entries) total += item.Length;
+        var buffer = new byte[65536];
         foreach (var entry in zip.Entries) {
           var destination = Path.GetFullPath(Path.Combine(target, entry.FullName));
           if (!destination.StartsWith(Path.GetFullPath(target) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Entrada inválida no pacote.");
           if (String.IsNullOrEmpty(entry.Name)) { Directory.CreateDirectory(destination); continue; }
           Directory.CreateDirectory(Path.GetDirectoryName(destination));
-          entry.ExtractToFile(destination, true);
+          using (var input = entry.Open())
+          using (var output = File.Create(destination)) {
+            int count;
+            while ((count = input.Read(buffer, 0, buffer.Length)) > 0) {
+              output.Write(buffer, 0, count); completed += count;
+              progress.Report(completed, total);
+            }
+          }
         }
       }
     } finally { if (File.Exists(archive)) File.Delete(archive); }
     var uninstaller = Path.Combine(target, "EzDeck-Uninstall.exe");
+    progress.Phase("Concluindo a instalação");
     if (!File.Exists(uninstaller)) throw new InvalidOperationException("Desinstalador interno do EzDeck não foi encontrado.");
     using (var key = Registry.CurrentUser.CreateSubKey(RegistryPath)) {
       key.SetValue("DisplayName", "EzDeck");
@@ -215,6 +248,7 @@ internal static class EzDeckInstaller {
       key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
     }
     var launcher = Path.Combine(target, "EzDeck.vbs");
+    progress.Phase("Reabrindo o EzDeck");
     Process.Start(new ProcessStartInfo("wscript.exe", "\"" + launcher + "\"") { WorkingDirectory = target, UseShellExecute = true });
     var checkRestart = Path.Combine(target, "windows", "ensure-restart.ps1");
     Process.Start(new ProcessStartInfo("powershell.exe", "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"" + checkRestart + "\" -InstallRoot \"" + target + "\"") { WorkingDirectory = target, UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden });
@@ -228,7 +262,8 @@ internal static class EzDeckInstaller {
       if (arguments.Length > 1 && !quiet) throw new InvalidOperationException("Parâmetros de instalação inválidos.");
       var target = legacyUpdate ? ValidateTarget(ExistingTarget()) : quiet ? ValidateTarget(arguments[3]) : ChooseTarget(ExistingTarget());
       if (target == null) return;
-      Install(target);
+      Application.EnableVisualStyles();
+      using (var progress = new InstallProgress()) { Install(target, progress); }
       if (!quiet) MessageBox.Show("EzDeck __EZDECK_VERSION__ instalado em:\r\n" + target, "Instalação concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);
     } catch (Exception error) {
       MessageBox.Show(error.Message, "EzDeck", MessageBoxButtons.OK, MessageBoxIcon.Error);

@@ -18,7 +18,7 @@ public static class EzDeckShellIdentity {
 [System.Windows.Forms.Application]::EnableVisualStyles()
 # A porta do host já é o bloqueio de instância. Evitamos um mutex persistente
 # que pode ficar preso após um encerramento inesperado e ocultar a bandeja.
-$script:child=$null; $script:closing=$false; $script:opened=$false
+$script:child=$null; $script:closing=$false; $script:opened=$false; $script:ready=$false
 # GetNewClosure creates a module scope for callbacks. Share one object across
 # that closure and the outer finally instead of assigning $script variables.
 $lifecycle=@{restartPort=$null}
@@ -179,17 +179,20 @@ $timer.add_Tick({
     # janela remove o ícone da bandeja, sem exigir um segundo clique.
     $script:closing=$true;$timer.Stop();$form.Close();return
   }
+  # Keep watching the host after startup: the updater waits for this window to
+  # exit before replacing files. Do not repeat startup requests or reopen it.
+  if($script:ready){return}
   $tries++
   try{
     $health=Invoke-RestMethod -Uri "$base/health" -TimeoutSec 1 -UseBasicParsing
     if($health.service -ne 'EzDeck'){throw 'Porta ocupada'}
     $info=Api '/api/windows/status'
     $label.Text='PIN '+$info.pin+'  •  '+$(if($info.address){$info.address}else{'rede local'})
-    $open.Enabled=$true;$timer.Stop()
+    $open.Enabled=$true;$script:ready=$true;$timer.Interval=250
     if($OnReady){& $OnReady}else{Open-ControlCenter}
   }catch{
     Write-DesktopError $_
-    if(-not $timer.Enabled -or $tries -ge 20){$timer.Stop();$label.Text='Nao foi possivel iniciar.';$form.Show();[Windows.Forms.MessageBox]::Show($_.Exception.Message,'EzDeck')|Out-Null}
+    if($script:ready -or $tries -ge 20){$script:ready=$true;$label.Text='Nao foi possivel iniciar.';$form.Show();[Windows.Forms.MessageBox]::Show($_.Exception.Message,'EzDeck')|Out-Null}
   }
 })
 try{

@@ -42,8 +42,8 @@ async function githubFetch(url, { fetcher, signal }) {
 
 export function createWindowsUpdater({ current, root, directory, fetcher = fetch, launch, now = Date.now } = {}) {
   let latest = null, checkedAt = null, checking = null, installing = false, staged = null;
-  let status = 'checking', error = null;
-  const snapshot = () => ({ current, latest: latest && { version: latest, available: newerVersion(latest, current) }, status, error });
+  let status = 'checking', error = null, progress = null;
+  const snapshot = () => ({ current, latest: latest && { version: latest, available: newerVersion(latest, current) }, status, error, progress: progress && {...progress} });
   async function check() {
     if (checking) return checking;
     if (checkedAt !== null && now() - checkedAt < 10 * 60 * 1000) return snapshot();
@@ -71,6 +71,7 @@ export function createWindowsUpdater({ current, root, directory, fetcher = fetch
     if (error) throw Error('Não foi possível confirmar a atualização no GitHub');
     if (!latest || !newerVersion(latest, current)) throw Error('Nenhuma atualização disponível');
     installing = true; staged = null; status = 'downloading'; error = null;
+    progress = {received:0,total:null};
     const tag = `v${latest}`, controller = new AbortController(), timer = setTimeout(() => controller.abort(), 120000);
     let folder;
     try {
@@ -88,6 +89,8 @@ export function createWindowsUpdater({ current, root, directory, fetcher = fetch
       const installer = join(folder, filename);
       const response = await githubFetch(`${base}${filename}`, { fetcher, signal: controller.signal });
       if (Number(response.headers.get('content-length')) > MAX_EXE) throw Error('Atualização maior que o permitido');
+      const total = Number(response.headers.get('content-length'));
+      progress.total = Number.isSafeInteger(total) && total > 0 ? total : null;
       const file = await open(installer, 'wx');
       const hash = createHash('sha256'); let size = 0, prefix = Buffer.alloc(0);
       try {
@@ -96,13 +99,17 @@ export function createWindowsUpdater({ current, root, directory, fetcher = fetch
           if (size > MAX_EXE) { controller.abort(); throw Error('Atualização maior que o permitido'); }
           if (prefix.length < 2) prefix = Buffer.concat([prefix, bytes]).subarray(0, 2);
           hash.update(bytes); await file.writeFile(bytes);
+          progress.received = size;
+          if (progress.total !== null && size > progress.total) progress.total = null;
         }
       } finally { await file.close(); }
+      status = 'verifying';
       if (size < 1024 || prefix.toString('ascii') !== 'MZ' || hash.digest('hex') !== expected) throw Error('O arquivo baixado não passou na verificação');
       staged = { installer, expected, version: latest }; status = 'ready';
       return { version: latest };
     } catch (e) {
       installing = false; checkedAt = null; status = 'error'; error = 'Não foi possível preparar a atualização. Nenhum instalador foi executado.';
+      progress = null;
       if (folder) await rm(folder, { recursive: true, force: true });
       throw Error(error);
     } finally { clearTimeout(timer); }
