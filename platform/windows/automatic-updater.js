@@ -1,7 +1,7 @@
 import { readFile, mkdir, writeFile, rename, rm } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { createWindowsUpdater } from './updater.js';
+import { createWindowsUpdater, newerVersion } from './updater.js';
 
 export async function createAutomaticWindowsUpdater(options) {
   const file = join(options.directory, 'preferences.json');
@@ -15,8 +15,13 @@ export async function createAutomaticWindowsUpdater(options) {
     if (error.code !== 'ENOENT') automatic = false;
   }
   const updater = createWindowsUpdater(options);
+  let previousInstallation = null;
+  try {
+    const result = JSON.parse(await readFile(join(options.directory,'last-result.json'),'utf8'));
+    if(result.stage === 'failed' && newerVersion(result.version,options.current)) previousInstallation = {version:result.version,failed:true};
+  } catch { /* No completed handoff has reported a failure. */ }
   let writes = Promise.resolve();
-  const snapshot = () => ({ ...updater.snapshot(), automatic,
+  const snapshot = () => ({ ...updater.snapshot(), automatic, previousInstallation,
     ...(!automatic ? {status:'disabled',latest:null,error:null} : {}) });
   async function check() {
     if (automatic) await updater.check();

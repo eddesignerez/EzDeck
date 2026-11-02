@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, copyFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createWindowsUpdater, newerVersion, stableVersion, windowsInstallerName } from '../platform/windows/updater.js';
@@ -16,6 +16,8 @@ async function fixture(t, overrides = {}) {
   const bytes = Buffer.alloc(2048, 42); bytes.write('MZ');
   const hash = createHash('sha256').update(bytes).digest('hex');
   const requests = [], launches = [];
+  await mkdir(join(directory,'windows'));
+  for(const name of ['apply-update.ps1','ensure-restart.ps1']) await copyFile(new URL('../windows/'+name,import.meta.url),join(directory,'windows',name));
   const fetcher = async url => {
     requests.push(url);
     if (url.endsWith('/releases/latest')) return new Response(null, {status:302,headers:{location:'https://github.com/eddesignerez/EzDeck/releases/tag/v0.2.13'}});
@@ -23,7 +25,10 @@ async function fixture(t, overrides = {}) {
     if (url.endsWith('/EzDeck0213-Setup.exe')) return new Response(bytes);
     throw Error('Unexpected URL');
   };
-  const updater = createWindowsUpdater({current:'0.2.12', root:directory, directory, fetcher, launch:async args => {launches.push(args)}, ...overrides});
+  const updater = createWindowsUpdater({current:'0.2.12', root:directory, directory, fetcher, launch:async (args, handshake) => {
+    launches.push(args);
+    await writeFile(handshake.statusFile,JSON.stringify({operationId:handshake.operationId,version:handshake.version,pid:1234,stage:'ready'}));
+  }, ...overrides});
   return {updater, requests, launches, bytes, hash, directory};
 }
 
@@ -171,6 +176,26 @@ test('Windows update controls require desktop secret and same origin before shut
   assert.equal((await fetch(`${base}/api/windows/update/install`,{method:'POST',headers:{'X-EzDeck-Host':token,Origin:base}})).status,200);
   await new Promise(resolve=>setImmediate(resolve));
   assert.equal(installs,1);assert.equal(applies,1);assert.equal(stops,1);
+});
+
+test('failed native handoff never acknowledges installation or shuts the server down', async t => {
+  const f=await fixture(t);const token='failed-handoff-test-only-abcdefghijklmnopqrstuvwxyz';let stopped=false;
+  const server=await startServer({port:0,dataDir:f.directory,config:{pinned:[]},obs:null,windowsHost:{token,
+    updater:{install:async()=>({version:'0.2.18'}),apply:async()=>{throw Error('Helper did not acknowledge')}},shutdown:()=>{stopped=true}}});
+  t.after(()=>server.close());const base=`http://127.0.0.1:${server.port}`;
+  const response=await fetch(`${base}/api/windows/update/install`,{method:'POST',headers:{'X-EzDeck-Host':token,Origin:base}});
+  assert.equal(response.ok,false);await response.text();
+  await new Promise(resolve=>setImmediate(resolve));assert.equal(stopped,false);
+  assert.equal((await fetch(`${base}/health`)).status,200);
+});
+
+test('a repaired current version does not retain a stale failed-upgrade warning', async t => {
+  const f=await fixture(t);
+  await writeFile(join(f.directory,'last-result.json'),JSON.stringify({stage:'failed',version:'0.2.18'}));
+  const old=await createAutomaticWindowsUpdater({current:'0.2.17',root:f.directory,directory:f.directory});
+  assert.equal(old.snapshot().previousInstallation.failed,true);
+  const repaired=await createAutomaticWindowsUpdater({current:'0.2.18',root:f.directory,directory:f.directory});
+  assert.equal(repaired.snapshot().previousInstallation,null);
 });
 
 test('Windows UI asks permission and cancel never submits an installation', async t => {
