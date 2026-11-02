@@ -49,7 +49,7 @@
     checkbox.checked=data.automatic === true; checkbox.disabled=false;
     if (!checkbox.checked) {latest=null;button.hidden=true;label.textContent='';return;}
     latest = data.latest?.available ? data.latest.version : null;
-    label.textContent = data.status === 'error' ? 'Não foi possível consultar o GitHub' : data.status === 'checking' ? 'Verificando atualizações' : '';
+    label.textContent = data.previousInstallation?.failed ? 'A atualização anterior não terminou. Você pode tentar novamente.' : data.status === 'error' ? 'Não foi possível consultar o GitHub' : data.status === 'checking' ? 'Verificando atualizações' : '';
     button.hidden = !latest;
     if (data.status === 'checking') timer = setTimeout(refresh, 1500);
   }

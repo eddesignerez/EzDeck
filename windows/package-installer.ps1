@@ -249,16 +249,18 @@ internal static class EzDeckInstaller {
     }
     var launcher = Path.Combine(target, "EzDeck.vbs");
     progress.Phase("Reabrindo o EzDeck");
-    Process.Start(new ProcessStartInfo("wscript.exe", "\"" + launcher + "\"") { WorkingDirectory = target, UseShellExecute = true });
     var checkRestart = Path.Combine(target, "windows", "ensure-restart.ps1");
-    Process.Start(new ProcessStartInfo("powershell.exe", "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"" + checkRestart + "\" -InstallRoot \"" + target + "\"") { WorkingDirectory = target, UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden });
+    using (var restart = Process.Start(new ProcessStartInfo("powershell.exe", "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"" + checkRestart + "\" -InstallRoot \"" + target + "\" -ExpectedVersion __EZDECK_VERSION__") { WorkingDirectory = target, UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden })) {
+      if (!restart.WaitForExit(45000) || restart.ExitCode != 0) throw new InvalidOperationException("Os arquivos foram instalados, mas o EzDeck não confirmou o reinício. Abra o aplicativo pelo menu Iniciar.");
+    }
   }
   [STAThread]
   private static void Main() {
+    bool quiet = false;
     try {
       var arguments = Environment.GetCommandLineArgs();
       var legacyUpdate = arguments.Length == 1 && IsLegacyUpdate(Assembly.GetExecutingAssembly().Location, Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
-      var quiet = legacyUpdate || (arguments.Length == 4 && String.Equals(arguments[1], "/quiet", StringComparison.OrdinalIgnoreCase) && String.Equals(arguments[2], "/dir", StringComparison.OrdinalIgnoreCase));
+      quiet = legacyUpdate || (arguments.Length == 4 && String.Equals(arguments[1], "/quiet", StringComparison.OrdinalIgnoreCase) && String.Equals(arguments[2], "/dir", StringComparison.OrdinalIgnoreCase));
       if (arguments.Length > 1 && !quiet) throw new InvalidOperationException("Parâmetros de instalação inválidos.");
       var target = legacyUpdate ? ValidateTarget(ExistingTarget()) : quiet ? ValidateTarget(arguments[3]) : ChooseTarget(ExistingTarget());
       if (target == null) return;
@@ -266,7 +268,15 @@ internal static class EzDeckInstaller {
       using (var progress = new InstallProgress()) { Install(target, progress); }
       if (!quiet) MessageBox.Show("EzDeck __EZDECK_VERSION__ instalado em:\r\n" + target, "Instalação concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);
     } catch (Exception error) {
-      MessageBox.Show(error.Message, "EzDeck", MessageBoxButtons.OK, MessageBoxIcon.Error);
+      // Automatic updates must return a failure to the helper, not hang on an
+      // unseen modal dialog while the desktop is already closed.
+      if (!quiet) MessageBox.Show(error.Message, "EzDeck", MessageBoxButtons.OK, MessageBoxIcon.Error);
+      try {
+        var data = Environment.GetEnvironmentVariable("EZDECK_DATA_DIR");
+        if (String.IsNullOrWhiteSpace(data)) data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "EzDeck");
+        var logs = Path.Combine(data, "updates"); Directory.CreateDirectory(logs);
+        File.AppendAllText(Path.Combine(logs, "installer-errors.log"), DateTime.UtcNow.ToString("o") + " " + error.Message + Environment.NewLine);
+      } catch { }
       Environment.ExitCode = 1;
     }
   }

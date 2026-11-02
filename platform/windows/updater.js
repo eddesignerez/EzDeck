@@ -1,7 +1,7 @@
-import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, open, rm } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
-import { spawn } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
+import { mkdir, mkdtemp, open, rm, copyFile } from 'node:fs/promises';
+import { join, resolve, dirname } from 'node:path';
+import { launchUpdateHelper, confirmUpdateHandoff } from './update-handoff.js';
 
 const REPO = 'https://github.com/eddesignerez/EzDeck';
 const MAX_EXE = 160 * 1024 * 1024;
@@ -40,7 +40,7 @@ async function githubFetch(url, { fetcher, signal }) {
   throw Error('Redirecionamento de atualização inválido');
 }
 
-export function createWindowsUpdater({ current, root, directory, fetcher = fetch, launch, now = Date.now } = {}) {
+export function createWindowsUpdater({ current, root, directory, fetcher = fetch, launch, now = Date.now, handoffTimeoutMs = 15000 } = {}) {
   let latest = null, checkedAt = null, checking = null, installing = false, staged = null;
   let status = 'checking', error = null, progress = null;
   const snapshot = () => ({ current, latest: latest && { version: latest, available: newerVersion(latest, current) }, status, error, progress: progress && {...progress} });
@@ -120,10 +120,16 @@ export function createWindowsUpdater({ current, root, directory, fetcher = fetch
       if (!launch && resolve(process.execPath).toLowerCase() !== resolve(root, 'runtime', 'node.exe').toLowerCase()) throw Error('A atualização precisa ser iniciada pelo EzDeck instalado');
       // Same process-scoped policy as the trusted desktop launcher. This does
       // not change machine policy or suppress Windows installer security UI.
-      const args = ['-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File', join(root, 'windows', 'apply-update.ps1'), '-Installer', staged.installer, '-ExpectedHash', staged.expected, '-HostPid', String(process.pid), '-DesktopPid', String(process.ppid), '-InstallRoot', resolve(root), '-Version', staged.version];
-      const child = launch ? await launch(args) : spawn('powershell.exe', args, { detached: true, windowsHide: true, stdio: 'ignore' });
-      if (!launch) await new Promise((resolve, reject) => { child.once('spawn', resolve); child.once('error', reject); });
-      child?.unref?.(); status = 'installing';
+      const folder = dirname(staged.installer), operationId = randomUUID();
+      const helper = join(folder, 'apply-update.ps1');
+      // Installing the next version replaces windows/: run immutable copies.
+      await copyFile(join(root, 'windows', 'apply-update.ps1'), helper);
+      await copyFile(join(root, 'windows', 'ensure-restart.ps1'), join(folder, 'ensure-restart.ps1'));
+      const handshake = {statusFile:join(folder,'handoff.json'),commitFile:join(folder,'commit.json'),operationId,version:staged.version,timeoutMs:handoffTimeoutMs};
+      const args = ['-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File', helper, '-Installer', staged.installer, '-ExpectedHash', staged.expected, '-HostPid', String(process.pid), '-DesktopPid', String(process.ppid), '-InstallRoot', resolve(root), '-Version', staged.version, '-OperationId', operationId];
+      const child = launch ? await launch(args, handshake) : await launchUpdateHelper(root, args);
+      await confirmUpdateHandoff({...handshake, child});
+      status = 'installing';
     } catch (e) {
       installing = false; staged = null; checkedAt = null; status = 'error';
       error = 'Não foi possível iniciar a instalação. Abra o EzDeck instalado e tente novamente.';

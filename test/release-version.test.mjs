@@ -12,14 +12,14 @@ const [packageJson, publicVersion, androidGradle, signingPolicy, installerScript
   readFile(new URL("../android/app/src/main/assets/public/version.json", import.meta.url), "utf8"),
 ]);
 
-test("todos os metadados apontam para a release v0.2.17", () => {
-  assert.equal(JSON.parse(packageJson).version, "0.2.17");
-  assert.deepEqual(JSON.parse(publicVersion), { tag: "v0.2.17", apkVersion: "0.2.17" });
+test("todos os metadados apontam para a release v0.2.18", () => {
+  assert.equal(JSON.parse(packageJson).version, "0.2.18");
+  assert.deepEqual(JSON.parse(publicVersion), { tag: "v0.2.18", apkVersion: "0.2.18" });
   assert.deepEqual(JSON.parse(androidVersion), JSON.parse(publicVersion));
-  assert.equal(JSON.parse(packageLock).version, "0.2.17");
-  assert.equal(JSON.parse(packageLock).packages[""].version, "0.2.17");
-  assert.match(androidGradle, /versionCode = 20/);
-  assert.match(androidGradle, /versionName = "0\.2\.17"/);
+  assert.equal(JSON.parse(packageLock).version, "0.2.18");
+  assert.equal(JSON.parse(packageLock).packages[""].version, "0.2.18");
+  assert.match(androidGradle, /versionCode = 21/);
+  assert.match(androidGradle, /versionName = "0\.2\.18"/);
   assert.match(signingPolicy, /GitHub Actions/);
   assert.match(installerScript, /DisplayVersion", "__EZDECK_VERSION__"/);
   assert.match(installerScript, /\.Replace\('__EZDECK_VERSION__', \$displayVersion\)/);

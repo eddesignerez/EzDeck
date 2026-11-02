@@ -22,8 +22,8 @@ test('desktop follows host exit after startup and can reopen on the same port', 
   assert.match(stdout,/Update lifecycle: close and reopen passed/);
 });
 
-test('Windows update retries the launcher only when the panel does not start', {skip:process.platform !== 'win32'}, async () => {
+test('Windows update requires a fresh panel and responding host, not just an existing process', {skip:process.platform !== 'win32'}, async () => {
   const script = fileURLToPath(new URL('./windows-update-restart.test.ps1', import.meta.url));
   const {stdout} = await promisify(execFile)('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script], {timeout:15000, windowsHide:true});
-  assert.match(stdout, /Restart scenarios: 3 passed/);
+  assert.match(stdout, /Restart scenarios: 5 passed/);
 });

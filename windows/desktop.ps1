@@ -122,8 +122,15 @@ function Open-ControlCenter {
             $core.PostWebMessageAsJson((@{type='host-error';error=$_.Exception.Message}|ConvertTo-Json -Compress))
           }
         })
+        $sender.CoreWebView2.add_NavigationCompleted({param($core,$navigation)
+          if($navigation.IsSuccess){
+            try {
+              $version=(Get-Content -LiteralPath (Join-Path $root 'package.json') -Raw -Encoding UTF8|ConvertFrom-Json).version
+              [IO.File]::WriteAllText((Join-Path $settingsDirectory 'desktop-ready.json'),(@{pid=$PID;port=$Port;version=$version;root=$root;readyAt=[DateTime]::UtcNow.ToString('o')}|ConvertTo-Json -Compress))
+            }catch{Write-DesktopError $_}
+          }
+        })
         $sender.CoreWebView2.Navigate($script:navigationUrl)
-        [IO.File]::WriteAllText((Join-Path $settingsDirectory 'desktop-ready.json'),(@{pid=$PID;port=$Port;readyAt=[DateTime]::UtcNow.ToString('o')}|ConvertTo-Json -Compress))
       }
       else { [Windows.Forms.MessageBox]::Show('Não foi possível iniciar o painel: '+$event.InitializationException.Message,'EzDeck')|Out-Null }
     })
