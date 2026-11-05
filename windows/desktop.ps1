@@ -2,6 +2,20 @@
 param([ValidateRange(0,65535)][int]$Port = 0, [scriptblock]$OnReady)
 
 $ErrorActionPreference = 'Stop'
+$root=Split-Path -Parent $PSScriptRoot
+$settingsDirectory=if($env:EZDECK_DATA_DIR){$env:EZDECK_DATA_DIR}else{Join-Path $env:APPDATA 'EzDeck'}
+# A second shortcut launch restores this user's existing window. The kernel
+# event disappears when its handles close, including after a process crash.
+# Separate data roots keep development/test instances independent.
+$instanceIdentity=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value+'|'+[IO.Path]::GetFullPath($root).ToLowerInvariant()+'|'+[IO.Path]::GetFullPath($settingsDirectory).ToLowerInvariant()
+$instanceHasher=[Security.Cryptography.SHA256]::Create()
+try{$instanceName='Local\EzDeck.Open.'+[BitConverter]::ToString($instanceHasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($instanceIdentity))).Replace('-','')}finally{$instanceHasher.Dispose()}
+$instanceCreated=$false
+$activationEvent=[Threading.EventWaitHandle]::new($false,[Threading.EventResetMode]::AutoReset,$instanceName,[ref]$instanceCreated)
+if(-not $instanceCreated){
+  try{$null=$activationEvent.Set()}finally{$activationEvent.Dispose()}
+  return
+}
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 try {
@@ -16,14 +30,11 @@ public static class EzDeckShellIdentity {
   [EzDeckShellIdentity]::SetCurrentProcessExplicitAppUserModelID('eddesignerez.EzDeck') | Out-Null
 } catch {}
 [System.Windows.Forms.Application]::EnableVisualStyles()
-# A porta do host já é o bloqueio de instância. Evitamos um mutex persistente
-# que pode ficar preso após um encerramento inesperado e ocultar a bandeja.
+# The TCP check still protects against a different application using this port.
 $script:child=$null; $script:closing=$false; $script:opened=$false; $script:ready=$false
 # GetNewClosure creates a module scope for callbacks. Share one object across
 # that closure and the outer finally instead of assigning $script variables.
 $lifecycle=@{restartPort=$null}
-$root=Split-Path -Parent $PSScriptRoot
-$settingsDirectory=if($env:EZDECK_DATA_DIR){$env:EZDECK_DATA_DIR}else{Join-Path $env:APPDATA 'EzDeck'}
 $settingsFile=Join-Path $settingsDirectory 'settings.json'
 function Write-DesktopError($failure) {
   try {
@@ -186,6 +197,7 @@ $timer.add_Tick({
     # janela remove o ícone da bandeja, sem exigir um segundo clique.
     $script:closing=$true;$timer.Stop();$form.Close();return
   }
+  if($activationEvent.WaitOne(0) -and $script:ready){Open-ControlCenter}
   # Keep watching the host after startup: the updater waits for this window to
   # exit before replacing files. Do not repeat startup requests or reopen it.
   if($script:ready){return}
@@ -226,6 +238,7 @@ finally{
   $timer.Stop();$timer.Dispose();$tray.Visible=$false;$tray.Dispose()
   if($script:child){if(-not $script:child.HasExited){try{Api '/api/windows/shutdown' 'POST' @{}|Out-Null}catch{};if(-not $script:child.WaitForExit(3500)){$script:child.Kill()}};$script:child.Dispose()}
   $form.Dispose()
+  $activationEvent.Dispose()
   if($lifecycle.restartPort){
     # O launcher VBS cria uma nova instância independente e relê a porta que
     # acabou de ser salva. Iniciar outro PowerShell dentro do finally podia
