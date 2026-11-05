@@ -1,8 +1,22 @@
-# EzDeck
+<div align="center">
+  <img src="public/ezdeck-logo.png" alt="Ícone do EzDeck" width="112">
+
+  <h1>EzDeck</h1>
+  <p><strong>Seu computador Windows sob controle, direto do celular ou tablet.</strong></p>
+  <p><a href="https://eddesignerez.github.io/EzDeck/">Conheça o site oficial</a> · <a href="https://github.com/eddesignerez/EzDeck/releases">Baixar o EzDeck</a> · <a href="MANUAL_DE_USO.md">Manual de uso</a></p>
+</div>
 
 Idiomas / Languages: [Português](README.md) · [English](README.en.md) · [Español](README.es.md) · [日本語](README.ja.md) · [Italiano](README.it.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [简体中文](README.zh-CN.md) · [Tiếng Việt](README.vi.md) · [한국어](README.ko.md) · [العربية](README.ar.md)
 
 Painel local de atalhos para usar um computador Windows a partir de Android, tablet ou navegador. Transforme um celular antigo em um controle no estilo Stream Deck: escolha os aplicativos no computador e abra ou foque cada um pela tela auxiliar.
+
+## Conheça o EzDeck
+
+O EzDeck transforma uma tela auxiliar em um painel de atalhos conectado ao Windows pela rede local. Abra aplicativos, acione teclas e explore o projeto no [site oficial](https://eddesignerez.github.io/EzDeck/), que inclui um simulador interativo e orientações de instalação.
+
+[![Prévia de uma versão anterior do site do EzDeck, com o simulador de botões](docs/images/site-preview-anterior.png)](https://eddesignerez.github.io/EzDeck/)
+
+*Prévia de uma versão anterior do site, incluindo uma representação do painel. Acesse o site para ver a versão atual.*
 
 ## Estado atual
 
