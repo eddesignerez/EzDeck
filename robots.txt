@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://eddesignerez.github.io/EzDeck/sitemap.xml
