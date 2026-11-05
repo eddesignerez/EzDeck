@@ -187,8 +187,11 @@ async function fixture(t, installedApps = [{name:"Calculadora",icon:false}]) {
   let shutdown=false,autostart=false;
   const platform = { appTools: {listInstalledApps: async()=>installedApps,listAppProcesses:async()=>[]},actions:{activateApp:async()=>{},openWebsite:async()=>{}},iconService:{getIconPng:async()=>null} };
   const server = await startServer({port:0, dataDir:directory, config:{pinned:[]}, obs:null, platform, windowsHost:{token:"test-only-host-key-abcdefghijklmnopqrstuvwxyz",actions:custom,startup:{enabled:async()=>autostart,set:async value=>(autostart=value)},shutdown:()=>{shutdown=true;},getPin:()=>"1929",getPort:()=>3100}});
-  t.after(async()=>{await server.close(); await rm(directory,{recursive:true,force:true});});
-  return {base:`http://127.0.0.1:${server.port}`, custom, shutdown:()=>shutdown};
+  let browser;
+  // Close the browser first: active requests can otherwise keep server.close()
+  // waiting in an earlier after-hook, preventing browser.close() from running.
+  t.after(async()=>{try{await browser?.close();}finally{await server.close(); await rm(directory,{recursive:true,force:true});}});
+  return {base:`http://127.0.0.1:${server.port}`, custom, shutdown:()=>shutdown, useBrowser:value=>{browser=value;}};
 }
 
 test("desktop registration and shutdown require host secret and same origin", async(t)=>{
@@ -226,9 +229,9 @@ test("Windows refresh endpoint refreshes the local inventory and is host-only", 
 });
 
 test("Adicionar apps funciona nas duas telas pelo único botão e persiste a seleção", {timeout:20000}, async(t)=>{
-  const {base} = await fixture(t);
+  const {base,useBrowser} = await fixture(t);
   const browser=await chromium.launch({headless:true, channel:process.platform === "win32" ? "msedge" : undefined});
-  t.after(()=>browser.close());
+  useBrowser(browser);
   const page=await browser.newPage({viewport:{width:1024,height:650}});
   const errors=[];
   page.on("pageerror",error=>errors.push(error.message));
@@ -252,9 +255,9 @@ test("Adicionar apps funciona nas duas telas pelo único botão e persiste a sel
 });
 
 test("Windows control center uses the visual card deck and local host controls", {timeout:20000}, async(t)=>{
-  const {base}=await fixture(t);
+  const {base,useBrowser}=await fixture(t);
   const browser=await chromium.launch({headless:true,channel:process.platform === "win32" ? "msedge" : undefined});
-  t.after(()=>browser.close());
+  useBrowser(browser);
   const page=await browser.newPage({viewport:{width:1200,height:760}});
   const errors=[];page.on("pageerror",error=>errors.push(error.message));
   await page.goto(`${base}/windows.html?token=test-only-host-key-abcdefghijklmnopqrstuvwxyz`);
@@ -312,9 +315,9 @@ test("Windows control center uses the visual card deck and local host controls",
 });
 
 test("card drop swaps exact positions instead of reordering by list index", {timeout:20000}, async(t)=>{
-  const {base}=await fixture(t,[{name:"Calculadora",icon:false},{name:"Bloco de notas",icon:false}]);
+  const {base,useBrowser}=await fixture(t,[{name:"Calculadora",icon:false},{name:"Bloco de notas",icon:false}]);
   const browser=await chromium.launch({headless:true,channel:process.platform === "win32" ? "msedge" : undefined});
-  t.after(()=>browser.close());
+  useBrowser(browser);
   const page=await browser.newPage({viewport:{width:1200,height:760}});
   await page.goto(`${base}/windows.html?token=test-only-host-key-abcdefghijklmnopqrstuvwxyz`);
   const drop = (selector, position) => page.evaluate(({selector,position}) => {
