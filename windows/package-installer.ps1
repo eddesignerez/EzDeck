@@ -206,6 +206,20 @@ internal static class EzDeckInstaller {
     }
     public void Dispose() { dialog.Close(); dialog.Dispose(); }
   }
+  private static FileStream OpenDestination(string path, InstallProgress progress) {
+    // Windows inventory/security services can briefly open a just-terminated
+    // executable. Retry only sharing/lock violations; all other errors still
+    // fail immediately and a persistent lock reports the original error.
+    for (int attempt = 0; ; attempt++) {
+      try { return File.Create(path); }
+      catch (IOException error) {
+        int code = System.Runtime.InteropServices.Marshal.GetHRForException(error) & 0xffff;
+        if ((code != 32 && code != 33) || attempt >= 40) throw;
+        if (attempt == 0) progress.Phase("Aguardando a liberação de arquivos pelo Windows");
+        System.Threading.Thread.Sleep(250);
+      }
+    }
+  }
   private static void Install(string target, InstallProgress progress) {
     Directory.CreateDirectory(target);
     var archive = Path.Combine(Path.GetTempPath(), "EzDeck-" + Guid.NewGuid().ToString("N") + ".zip");
@@ -224,7 +238,7 @@ internal static class EzDeckInstaller {
           if (String.IsNullOrEmpty(entry.Name)) { Directory.CreateDirectory(destination); continue; }
           Directory.CreateDirectory(Path.GetDirectoryName(destination));
           using (var input = entry.Open())
-          using (var output = File.Create(destination)) {
+          using (var output = OpenDestination(destination, progress)) {
             int count;
             while ((count = input.Read(buffer, 0, buffer.Length)) > 0) {
               output.Write(buffer, 0, count); completed += count;
